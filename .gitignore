@@ -1,0 +1,29 @@
+# Environment
+.env
+*.env
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Flutter
+.flutter-plugins
+.dart_tool/
+build/
+*.iml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.zip
+*.sql.gz
+
+# Logs
+*.log
+logs/
