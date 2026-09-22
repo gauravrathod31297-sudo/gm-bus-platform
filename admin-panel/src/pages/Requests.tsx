@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Button, Card, Spinner, MessageBar, MessageBarBody,
-  MessageBarTitle, makeStyles, tokens, Table, TableHeader,
+  MessageBarTitle, makeStyles, tokens, Text, Table, TableHeader,
   TableRow, TableHeaderCell, TableBody, TableCell
 } from '@fluentui/react-components'
 import { CheckmarkRegular, DismissRegular, ArrowSyncRegular } from '@fluentui/react-icons'
