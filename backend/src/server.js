@@ -47,6 +47,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/bus', busRoutes);
 app.use('/api/route', routeRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/settings', require('./routes/settings'));
 
 app.use('/audio', express.static('public/audio'));
 

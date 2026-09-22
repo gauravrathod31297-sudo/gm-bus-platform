@@ -6,6 +6,7 @@ import RoutesPage from './pages/RoutesPage'
 import Stops from './pages/Stops'
 import LiveMap from './pages/LiveMap'
 import Settings from './pages/Settings'
+import VoiceSettings from './pages/VoiceSettings'
 
 function App() {
   const token = localStorage.getItem('client_token')
@@ -19,6 +20,7 @@ function App() {
       <Route path="/stops" element={<Guard><Stops /></Guard>} />
       <Route path="/live" element={<Guard><LiveMap /></Guard>} />
       <Route path="/settings" element={<Guard><Settings /></Guard>} />
+      <Route path="/voice" element={<Guard><VoiceSettings /></Guard>} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )

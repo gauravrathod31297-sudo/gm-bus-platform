@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Button, makeStyles, tokens, Text } from '@fluentui/react-components'
 import {
   BoardRegular, VehicleBusRegular, MapRegular, LocationRegular,
-  SettingsRegular, SignOutRegular
+  SettingsRegular, SignOutRegular, Speaker2Regular
 } from '@fluentui/react-icons'
 
 const useStyles = makeStyles({
@@ -48,6 +48,7 @@ export default function Layout({ children, title }: Props) {
     { path: '/routes', label: 'Routes', icon: <MapRegular /> },
     { path: '/stops', label: 'Stops', icon: <LocationRegular /> },
     { path: '/live', label: 'Live Tracking', icon: <LocationRegular /> },
+    { path: '/voice', label: 'Voice', icon: <Speaker2Regular /> },
     { path: '/settings', label: 'Settings', icon: <SettingsRegular /> },
   ]
 
