@@ -1,31 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Button, Dialog, DialogTrigger, DialogSurface, DialogTitle, DialogBody,
-  DialogActions, DialogContent, Field, Input, Select, MessageBar, MessageBarBody,
-  makeStyles, tokens, Text, Tab, TabList
+  DialogActions, DialogContent, Field, Input, MessageBar, MessageBarBody,
+  makeStyles, tokens, Text, Tab, TabList, Spinner
 } from '@fluentui/react-components'
-import { AddRegular, LocationRegular, MapRegular, LinkRegular, SaveRegular } from '@fluentui/react-icons'
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { AddRegular, LocationRegular, MapRegular, LinkRegular, SaveRegular, SearchRegular } from '@fluentui/react-icons'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import { Icon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import api from '../services/api'
 
 const useStyles = makeStyles({
-  dialog: { maxWidth: '700px', width: '95vw' },
+  dialog: { maxWidth: '800px', width: '95vw' },
   field: { marginBottom: '16px', width: '100%' },
   mapWrap: { height: '350px', borderRadius: '8px', overflow: 'hidden', marginTop: '12px', border: `1px solid ${tokens.colorNeutralStroke1}` },
   tabContent: { paddingTop: '16px' },
   coords: { display: 'flex', gap: '12px' },
   helpText: { fontSize: '12px', color: tokens.colorNeutralForeground3, marginTop: '4px' },
   preview: { background: tokens.colorNeutralBackground2, padding: '12px', borderRadius: '8px', marginTop: '12px' },
+  searchResults: { maxHeight: '250px', overflowY: 'auto', border: `1px solid ${tokens.colorNeutralStroke1}`, borderRadius: '8px', marginTop: '12px' },
+  resultItem: { padding: '12px', cursor: 'pointer', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, transition: 'background 0.15s' },
+  resultTitle: { fontWeight: '600', fontSize: '14px' },
+  resultAddress: { fontSize: '12px', color: tokens.colorNeutralForeground3, marginTop: '2px' },
 })
 
-// Map click handler
 function LocationMarker({ position, setPosition }: any) {
   useMapEvents({
-    click(e: any) {
-      setPosition(e.latlng)
-    },
+    click(e: any) { setPosition(e.latlng) },
   })
   return position ? (
     <Marker position={position} icon={new Icon({
@@ -34,6 +35,15 @@ function LocationMarker({ position, setPosition }: any) {
       iconAnchor: [20, 40],
     })} />
   ) : null
+}
+
+// Component to move map when position changes
+function MapMover({ position }: any) {
+  const map = useMap()
+  useEffect(() => {
+    if (position) map.flyTo(position, 15, { duration: 1 })
+  }, [position, map])
+  return null
 }
 
 interface Props {
@@ -45,7 +55,7 @@ interface Props {
 export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
   const styles = useStyles()
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<'gps' | 'map' | 'link' | 'manual'>('gps')
+  const [tab, setTab] = useState<'search' | 'gps' | 'map' | 'link' | 'manual'>('search')
   const [form, setForm] = useState({
     stop_name: '',
     stop_name_mr: '',
@@ -53,11 +63,13 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
     lat: '',
     lng: '',
     stop_order: stopNumber,
-    announcement_text: '',
   })
   const [position, setPosition] = useState<any>(null)
   const [mapReady, setMapReady] = useState(false)
   const [link, setLink] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(false)
   const [gettingGps, setGettingGps] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -66,10 +78,44 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
     if (tab === 'map') setMapReady(true)
   }, [tab])
 
-  // GPS Location
+  // Search places
+  const searchPlaces = async () => {
+    if (!searchQuery.trim()) return
+    setSearching(true)
+    setMsg(null)
+    setSearchResults([])
+    try {
+      const res = await api.get(`/api/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      if (res.data.success) {
+        setSearchResults(res.data.results)
+        if (res.data.results.length === 0) {
+          setMsg({ type: 'error', text: 'कोणतीही जागा सापडली नाही' })
+        }
+      }
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Search failed' })
+    } finally { setSearching(false) }
+  }
+
+  // Select search result
+  const selectResult = (result: any) => {
+    const lat = result.lat.toFixed(7)
+    const lng = result.lng.toFixed(7)
+    setForm({
+      ...form,
+      lat,
+      lng,
+      stop_name: form.stop_name || result.name,
+    })
+    setPosition({ lat: result.lat, lng: result.lng })
+    setMsg({ type: 'success', text: `✅ Selected: ${result.name}` })
+    setTab('map') // Switch to map to show pin
+  }
+
+  // GPS
   const getGpsLocation = () => {
     if (!navigator.geolocation) {
-      setMsg({ type: 'error', text: 'GPS not supported in this browser' })
+      setMsg({ type: 'error', text: 'GPS not supported' })
       return
     }
     setGettingGps(true)
@@ -90,7 +136,6 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
     )
   }
 
-  // Parse Google Maps Link
   const parseLink = async () => {
     if (!link.trim()) return
     setMsg(null)
@@ -99,23 +144,17 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
       if (res.data.success) {
         setForm({ ...form, lat: res.data.lat.toFixed(7), lng: res.data.lng.toFixed(7) })
         setPosition({ lat: res.data.lat, lng: res.data.lng })
-        setMsg({ type: 'success', text: `✅ Link parsed: ${res.data.lat}, ${res.data.lng}` })
+        setMsg({ type: 'success', text: `✅ Link parsed` })
+        setTab('map')
       }
     } catch (e: any) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Invalid link' })
     }
   }
 
-  // Save Stop
   const save = async () => {
-    if (!form.stop_name.trim()) {
-      setMsg({ type: 'error', text: 'Stop name required' })
-      return
-    }
-    if (!form.lat || !form.lng) {
-      setMsg({ type: 'error', text: 'Location select करा (GPS/Map/Link/Manual)' })
-      return
-    }
+    if (!form.stop_name.trim()) { setMsg({ type: 'error', text: 'Stop name required' }); return }
+    if (!form.lat || !form.lng) { setMsg({ type: 'error', text: 'Location select करा' }); return }
     setLoading(true)
     setMsg(null)
     try {
@@ -126,33 +165,17 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
         lat: parseFloat(form.lat),
         lng: parseFloat(form.lng),
         stop_order: form.stop_order,
-        announcement_text: form.announcement_text,
       })
       setMsg({ type: 'success', text: '✅ Stop added!' })
-      setTimeout(() => {
-        setOpen(false)
-        resetForm()
-        onCreated()
-      }, 1500)
+      setTimeout(() => { setOpen(false); resetForm(); onCreated() }, 1500)
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Failed to save' })
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Failed' })
     } finally { setLoading(false) }
   }
 
   const resetForm = () => {
-    setForm({
-      stop_name: '',
-      stop_name_mr: '',
-      stop_name_gu: '',
-      lat: '',
-      lng: '',
-      stop_order: stopNumber,
-      announcement_text: '',
-    })
-    setPosition(null)
-    setLink('')
-    setMsg(null)
-    setTab('gps')
+    setForm({ stop_name: '', stop_name_mr: '', stop_name_gu: '', lat: '', lng: '', stop_order: stopNumber })
+    setPosition(null); setLink(''); setSearchQuery(''); setSearchResults([]); setMsg(null); setTab('search')
   }
 
   return (
@@ -170,7 +193,6 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
               </MessageBar>
             )}
 
-            {/* Stop Names */}
             <Text weight="semibold" style={{ marginBottom: '12px', display: 'block' }}>📍 Stop Names (सर्व भाषा)</Text>
             <Field label="Stop Name (English) *" className={styles.field}>
               <Input value={form.stop_name} onChange={(_, d) => setForm({ ...form, stop_name: d.value })} placeholder="Shivaji Nagar" />
@@ -185,99 +207,114 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
               <Input type="number" value={String(form.stop_order)} onChange={(_, d) => setForm({ ...form, stop_order: parseInt(d.value) || stopNumber })} />
             </Field>
 
-            {/* Location Options */}
             <Text weight="semibold" style={{ margin: '16px 0 12px', display: 'block' }}>🗺️ Location निवडा</Text>
-            
+
             <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as any)}>
+              <Tab value="search" icon={<SearchRegular />}>🔍 Search</Tab>
               <Tab value="gps" icon={<LocationRegular />}>GPS</Tab>
-              <Tab value="map" icon={<MapRegular />}>Map Pin</Tab>
+              <Tab value="map" icon={<MapRegular />}>Map</Tab>
               <Tab value="link" icon={<LinkRegular />}>Link</Tab>
               <Tab value="manual" icon={<SaveRegular />}>Manual</Tab>
             </TabList>
 
             <div className={styles.tabContent}>
-              {/* GPS Tab */}
+              {/* SEARCH TAB */}
+              {tab === 'search' && (
+                <div>
+                  <Text>जागेचं नाव टाका आणि search करा</Text>
+                  <div className={styles.helpText}>
+                    उदा. "Shivaji Nagar Pune", "Pune Railway Station", "Phoenix Mall"
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <Input
+                      value={searchQuery}
+                      onChange={(_, d) => setSearchQuery(d.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && searchPlaces()}
+                      placeholder="Search places..."
+                      style={{ flex: 1 }}
+                      contentBefore={<SearchRegular />}
+                    />
+                    <Button appearance="primary" onClick={searchPlaces} disabled={searching}>
+                      {searching ? <Spinner size="tiny" /> : 'Search'}
+                    </Button>
+                  </div>
+
+                  {searchResults.length > 0 && (
+                    <div className={styles.searchResults}>
+                      {searchResults.map((r, i) => (
+                        <div
+                          key={i}
+                          className={styles.resultItem}
+                          onClick={() => selectResult(r)}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div className={styles.resultTitle}>📍 {r.name}</div>
+                          <div className={styles.resultAddress}>{r.display_name}</div>
+                          <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                            {r.lat.toFixed(5)}, {r.lng.toFixed(5)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* GPS TAB */}
               {tab === 'gps' && (
                 <div>
                   <Text>तुमच्या device ची current location वापरा</Text>
-                  <div className={styles.helpText}>GPS permission allow करा</div>
-                  <Button
-                    appearance="primary"
-                    icon={<LocationRegular />}
-                    onClick={getGpsLocation}
-                    disabled={gettingGps}
-                    style={{ marginTop: '12px' }}
-                  >
-                    {gettingGps ? '📍 Location मिळवत आहे...' : '📍 Current Location मिळवा'}
+                  <Button appearance="primary" icon={<LocationRegular />} onClick={getGpsLocation} disabled={gettingGps} style={{ marginTop: '12px' }}>
+                    {gettingGps ? '📍 मिळवत आहे...' : '📍 Current Location'}
                   </Button>
                 </div>
               )}
 
-              {/* Map Tab */}
+              {/* MAP TAB */}
               {tab === 'map' && (
                 <div>
                   <Text>Map वर tap करून location select करा</Text>
                   <div className={styles.mapWrap}>
                     {mapReady && (
-                      <MapContainer center={[18.5204, 73.8567]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                        <TileLayer
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          attribution='&copy; OpenStreetMap'
-                        />
+                      <MapContainer center={[position?.lat || 18.5204, position?.lng || 73.8567]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                         <LocationMarker position={position} setPosition={(p: any) => {
                           setPosition(p)
                           setForm({ ...form, lat: p.lat.toFixed(7), lng: p.lng.toFixed(7) })
                         }} />
+                        {position && <MapMover position={position} />}
                       </MapContainer>
                     )}
                   </div>
-                  <div className={styles.helpText}>💡 Map वर click करा → Pin drop होईल</div>
+                  <div className={styles.helpText}>💡 Map वर click करा</div>
                 </div>
               )}
 
-              {/* Link Tab */}
+              {/* LINK TAB */}
               {tab === 'link' && (
                 <div>
                   <Text>Google Maps link paste करा</Text>
-                  <div className={styles.helpText}>
-                    उदा. https://maps.google.com/?q=18.5204,73.8567<br/>
-                    किंवा https://www.google.com/maps/@18.5204,73.8567,15z
-                  </div>
                   <Field className={styles.field} style={{ marginTop: '12px' }}>
-                    <Input
-                      value={link}
-                      onChange={(_, d) => setLink(d.value)}
-                      placeholder="https://maps.google.com/..."
-                      contentAfter={
-                        <Button size="small" appearance="primary" onClick={parseLink}>Parse</Button>
-                      }
-                    />
+                    <Input value={link} onChange={(_, d) => setLink(d.value)} placeholder="https://maps.google.com/..."
+                      contentAfter={<Button size="small" appearance="primary" onClick={parseLink}>Parse</Button>} />
                   </Field>
                 </div>
               )}
 
-              {/* Manual Tab */}
+              {/* MANUAL TAB */}
               {tab === 'manual' && (
                 <div className={styles.coords}>
                   <Field label="Latitude" className={styles.field}>
-                    <Input
-                      value={form.lat}
-                      onChange={(_, d) => setForm({ ...form, lat: d.value })}
-                      placeholder="18.5204000"
-                    />
+                    <Input value={form.lat} onChange={(_, d) => setForm({ ...form, lat: d.value })} placeholder="18.5204000" />
                   </Field>
                   <Field label="Longitude" className={styles.field}>
-                    <Input
-                      value={form.lng}
-                      onChange={(_, d) => setForm({ ...form, lng: d.value })}
-                      placeholder="73.8567000"
-                    />
+                    <Input value={form.lng} onChange={(_, d) => setForm({ ...form, lng: d.value })} placeholder="73.8567000" />
                   </Field>
                 </div>
               )}
             </div>
 
-            {/* Selected Location Preview */}
             {form.lat && form.lng && (
               <div className={styles.preview}>
                 <Text weight="semibold" size={300}>📍 Selected Location:</Text>
