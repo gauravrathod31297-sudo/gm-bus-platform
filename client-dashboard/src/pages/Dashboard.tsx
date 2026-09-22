@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Card, Spinner, makeStyles, tokens, Text } from '@fluentui/react-components'
 import api from '../services/api'
 import Layout from '../components/Layout'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const useStyles = makeStyles({
   grid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' },
@@ -11,6 +12,7 @@ const useStyles = makeStyles({
 
 export default function Dashboard() {
   const styles = useStyles()
+  const { t } = useLanguage()
   const [buses, setBuses] = useState<any[]>([])
   const [routes, setRoutes] = useState<any[]>([])
   const [live, setLive] = useState<any[]>([])
@@ -26,14 +28,14 @@ export default function Dashboard() {
   }, [])
 
   const cards = [
-    { label: 'Total Buses', value: buses.length, color: tokens.colorBrandForeground1 },
-    { label: 'Active Routes', value: routes.length, color: tokens.colorPaletteGreenForeground1 },
-    { label: 'Live Now', value: live.length, color: tokens.colorPaletteYellowForeground1 },
-    { label: 'Company', value: user.company || 'N/A', color: tokens.colorNeutralForeground1 },
+    { label: t('totalBuses'), value: buses.length, color: tokens.colorBrandForeground1 },
+    { label: t('activeRoutes'), value: routes.length, color: tokens.colorPaletteGreenForeground1 },
+    { label: t('liveNow'), value: live.length, color: tokens.colorPaletteYellowForeground1 },
+    { label: t('company'), value: user.company || 'N/A', color: tokens.colorNeutralForeground1 },
   ]
 
   return (
-    <Layout title="Dashboard">
+    <Layout title={t('dashboard')}>
       {loading ? <div style={{ padding: '48px', textAlign: 'center' }}><Spinner /></div> : (
         <>
           <div className={styles.grid}>
@@ -45,10 +47,7 @@ export default function Dashboard() {
             ))}
           </div>
           <Card className={styles.card}>
-            <Text size={500} weight="semibold">Welcome, {user.name}!</Text>
-            <Text style={{ display: 'block', marginTop: '8px' }}>
-              Use the sidebar to manage your buses, routes, and track live locations.
-            </Text>
+            <Text size={500} weight="semibold">{t('welcome')}, {user.name}!</Text>
           </Card>
         </>
       )}

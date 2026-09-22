@@ -6,6 +6,7 @@ import {
   SettingsRegular, SignOutRegular, Speaker2Regular
 } from '@fluentui/react-icons'
 import { useLanguage } from '../i18n/LanguageContext'
+import LanguageSwitcher from './LanguageSwitcher'
 
 const useStyles = makeStyles({
   root: { display: 'flex', minHeight: '100vh', backgroundColor: tokens.colorNeutralBackground2 },
@@ -23,7 +24,18 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground1 },
   navItemActive: { backgroundColor: tokens.colorBrandBackground2, fontWeight: '600' },
   footer: { padding: '12px', borderTop: `1px solid ${tokens.colorNeutralStroke2}` },
-  main: { flex: 1, padding: '32px', overflow: 'auto' },
+  main: { flex: 1, display: 'flex', flexDirection: 'column' },
+  header: {
+    background: 'white',
+    padding: '12px 32px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+  headerTitle: { fontSize: '20px', fontWeight: '600' },
+  headerRight: { display: 'flex', alignItems: 'center', gap: '12px' },
+  content: { flex: 1, padding: '32px', overflow: 'auto' },
 })
 
 interface Props { children: ReactNode; title: string }
@@ -84,8 +96,16 @@ export default function Layout({ children, title }: Props) {
         </div>
       </aside>
       <main className={styles.main}>
-        <div style={{ fontSize: '28px', fontWeight: '600', marginBottom: '24px' }}>{title}</div>
-        {children}
+        {/* Top Header with Language Switcher */}
+        <div className={styles.header}>
+          <div className={styles.headerTitle}>{title}</div>
+          <div className={styles.headerRight}>
+            <LanguageSwitcher />
+          </div>
+        </div>
+        <div className={styles.content}>
+          {children}
+        </div>
       </main>
     </div>
   )
