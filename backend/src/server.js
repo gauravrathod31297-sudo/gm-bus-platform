@@ -49,6 +49,7 @@ app.use('/api/route', routeRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/geocode', require('./routes/geocode'));
+app.use('/api/translate', require('./routes/translate'));
 
 app.use('/audio', express.static('public/audio'));
 
