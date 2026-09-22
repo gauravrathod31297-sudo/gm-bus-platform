@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Spinner, Dialog, DialogTrigger, DialogSurface,
-  DialogTitle, DialogBody, DialogActions, Field, Input, MessageBar,
+  DialogTitle, DialogBody, DialogActions, DialogContent, Field, Input, MessageBar,
   MessageBarBody, Table, TableHeader, TableRow, TableHeaderCell,
-  TableBody, TableCell, makeStyles, tokens, Text } from '@fluentui/react-components'
+  TableBody, TableCell, makeStyles, tokens, Text, Select } from '@fluentui/react-components'
 import { AddRegular, DeleteRegular, ArrowSyncRegular } from '@fluentui/react-icons'
 import api from '../services/api'
 import Layout from '../components/Layout'
@@ -10,6 +10,8 @@ import Layout from '../components/Layout'
 const useStyles = makeStyles({
   card: { padding: '24px' },
   header: { display: 'flex', justifyContent: 'space-between', marginBottom: '16px' },
+  dialog: { maxWidth: '500px', width: '90vw' },
+  field: { marginBottom: '16px', width: '100%' },
 })
 
 export default function Buses() {
@@ -62,33 +64,56 @@ export default function Buses() {
               <DialogTrigger disableButtonEnhancement>
                 <Button appearance="primary" icon={<AddRegular />}>Add Bus</Button>
               </DialogTrigger>
-              <DialogSurface>
-                <DialogTitle>Add New Bus</DialogTitle>
+              <DialogSurface className={styles.dialog}>
                 <DialogBody>
-                  <Field label="Bus Number" required>
-                    <Input value={form.bus_number} onChange={(_, d) => setForm({ ...form, bus_number: d.value })} placeholder="MH-12-AB-1234" />
-                  </Field>
-                  <Field label="Driver Name">
-                    <Input value={form.driver_name} onChange={(_, d) => setForm({ ...form, driver_name: d.value })} />
-                  </Field>
-                  <Field label="Driver Phone">
-                    <Input value={form.driver_phone} onChange={(_, d) => setForm({ ...form, driver_phone: d.value })} />
-                  </Field>
-                  <Field label="Route">
-                    <select value={form.route_id} onChange={e => setForm({ ...form, route_id: e.target.value })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: `1px solid ${tokens.colorNeutralStroke1}` }}>
-                      <option value="">-- Select --</option>
-                      {routes.map(r => <option key={r.id} value={r.id}>{r.route_name}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Capacity">
-                    <Input type="number" value={String(form.capacity)} onChange={(_, d) => setForm({ ...form, capacity: parseInt(d.value) || 40 })} />
-                  </Field>
+                  <DialogTitle>Add New Bus</DialogTitle>
+                  <DialogContent>
+                    <Field label="Bus Number" required className={styles.field}>
+                      <Input 
+                        value={form.bus_number} 
+                        onChange={(_, d) => setForm({ ...form, bus_number: d.value })} 
+                        placeholder="MH-12-AB-1234"
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                    <Field label="Driver Name" className={styles.field}>
+                      <Input 
+                        value={form.driver_name} 
+                        onChange={(_, d) => setForm({ ...form, driver_name: d.value })} 
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                    <Field label="Driver Phone" className={styles.field}>
+                      <Input 
+                        value={form.driver_phone} 
+                        onChange={(_, d) => setForm({ ...form, driver_phone: d.value })} 
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                    <Field label="Route" className={styles.field}>
+                      <Select 
+                        value={form.route_id} 
+                        onChange={(_, d) => setForm({ ...form, route_id: d.value })}
+                        style={{ width: '100%' }}
+                      >
+                        <option value="">-- Select Route --</option>
+                        {routes.map(r => <option key={r.id} value={r.id}>{r.route_name}</option>)}
+                      </Select>
+                    </Field>
+                    <Field label="Capacity" className={styles.field}>
+                      <Input 
+                        type="number" 
+                        value={String(form.capacity)} 
+                        onChange={(_, d) => setForm({ ...form, capacity: parseInt(d.value) || 40 })} 
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button appearance="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button appearance="primary" onClick={create}>Save</Button>
+                  </DialogActions>
                 </DialogBody>
-                <DialogActions>
-                  <Button appearance="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button appearance="primary" onClick={create}>Save</Button>
-                </DialogActions>
               </DialogSurface>
             </Dialog>
           </div>

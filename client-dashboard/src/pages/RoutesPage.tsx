@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Spinner, Dialog, DialogTrigger, DialogSurface,
-  DialogTitle, DialogBody, DialogActions, Field, Input, MessageBar,
+  DialogTitle, DialogBody, DialogActions, DialogContent, Field, Input, MessageBar,
   MessageBarBody, Table, TableHeader, TableRow, TableHeaderCell,
   TableBody, TableCell, makeStyles, tokens, Text } from '@fluentui/react-components'
 import { AddRegular, DeleteRegular, ArrowSyncRegular } from '@fluentui/react-icons'
@@ -10,6 +10,8 @@ import Layout from '../components/Layout'
 const useStyles = makeStyles({
   card: { padding: '24px' },
   header: { display: 'flex', justifyContent: 'space-between', marginBottom: '16px' },
+  dialog: { maxWidth: '500px', width: '90vw' },
+  field: { marginBottom: '16px', width: '100%' },
 })
 
 export default function RoutesPage() {
@@ -58,23 +60,38 @@ export default function RoutesPage() {
               <DialogTrigger disableButtonEnhancement>
                 <Button appearance="primary" icon={<AddRegular />}>Add Route</Button>
               </DialogTrigger>
-              <DialogSurface>
-                <DialogTitle>Create New Route</DialogTitle>
+              <DialogSurface className={styles.dialog}>
                 <DialogBody>
-                  <Field label="Route Name" required>
-                    <Input value={form.route_name} onChange={(_, d) => setForm({ ...form, route_name: d.value })} placeholder="Route 1 - City Center" />
-                  </Field>
-                  <Field label="Start Point">
-                    <Input value={form.start_point} onChange={(_, d) => setForm({ ...form, start_point: d.value })} />
-                  </Field>
-                  <Field label="End Point">
-                    <Input value={form.end_point} onChange={(_, d) => setForm({ ...form, end_point: d.value })} />
-                  </Field>
+                  <DialogTitle>Create New Route</DialogTitle>
+                  <DialogContent>
+                    <Field label="Route Name" required className={styles.field}>
+                      <Input 
+                        value={form.route_name} 
+                        onChange={(_, d) => setForm({ ...form, route_name: d.value })} 
+                        placeholder="Route 1 - City Center"
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                    <Field label="Start Point" className={styles.field}>
+                      <Input 
+                        value={form.start_point} 
+                        onChange={(_, d) => setForm({ ...form, start_point: d.value })} 
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                    <Field label="End Point" className={styles.field}>
+                      <Input 
+                        value={form.end_point} 
+                        onChange={(_, d) => setForm({ ...form, end_point: d.value })} 
+                        style={{ width: '100%' }}
+                      />
+                    </Field>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button appearance="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button appearance="primary" onClick={create}>Save</Button>
+                  </DialogActions>
                 </DialogBody>
-                <DialogActions>
-                  <Button appearance="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button appearance="primary" onClick={create}>Save</Button>
-                </DialogActions>
               </DialogSurface>
             </Dialog>
           </div>
