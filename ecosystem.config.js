@@ -1,0 +1,46 @@
+module.exports = {
+  apps: [
+    {
+      name: 'gm-backend',
+      cwd: './backend',
+      script: 'src/server.js',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '500M',
+      env: { NODE_ENV: 'production', PORT: 5000 },
+      error_file: '/tmp/gm-backend-error.log',
+      out_file: '/tmp/gm-backend-out.log',
+      merge_logs: true,
+      time: true,
+    },
+    {
+      name: 'gm-client',
+      cwd: './client-dashboard',
+      script: 'npx',
+      args: 'vite --port 5174 --host',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      env: { NODE_ENV: 'production' },
+      error_file: '/tmp/gm-client-error.log',
+      out_file: '/tmp/gm-client-out.log',
+      merge_logs: true,
+      time: true,
+    },
+    {
+      name: 'gm-admin',
+      cwd: './admin-dashboard',
+      script: 'npx',
+      args: 'vite --port 5173 --host',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      env: { NODE_ENV: 'production' },
+      error_file: '/tmp/gm-admin-error.log',
+      out_file: '/tmp/gm-admin-out.log',
+      merge_logs: true,
+      time: true,
+    }
+  ]
+}
