@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const tenantMiddleware = require('../middleware/tenant');
 const masterDb = require('../config/database');
-const { generateTwoLanguages, calculateETA, haversine } = require('../services/voiceService');
+const { generateAnnouncements, calculateETA, haversine } = require('../services/voiceService');
 
 router.use(authenticate, tenantMiddleware);
 
@@ -42,10 +42,10 @@ router.post('/eta', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Announcement — uses client's preferred_language
+// Announcement — Primary + Hindi + English (based on client language)
 router.post('/announcement', async (req, res) => {
   try {
-    const { stop_name, stop_name_mr, stop_name_gu } = req.body;
+    const { stop_name, stop_name_mr, stop_name_gu, stop_name_hi } = req.body;
     if (!stop_name) return res.status(400).json({ error: 'stop_name required' });
 
     // Get client preferred_language
@@ -56,8 +56,8 @@ router.post('/announcement', async (req, res) => {
     );
     const primaryLang = clients[0]?.preferred_language || 'en';
 
-    const results = await generateTwoLanguages(
-      { stop_name, stop_name_mr, stop_name_gu },
+    const results = await generateAnnouncements(
+      { stop_name, stop_name_mr, stop_name_gu, stop_name_hi },
       primaryLang
     );
 

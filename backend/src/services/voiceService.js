@@ -16,7 +16,6 @@ const TEMPLATES = {
 async function downloadAudio(text, lang, fileName) {
   const filePath = path.join(AUDIO_DIR, fileName);
   try {
-    // google-tts-api returns array for long text
     const results = await googleTTS.getAllAudioUrls(text, {
       lang: lang,
       slow: false,
@@ -24,7 +23,6 @@ async function downloadAudio(text, lang, fileName) {
       splitPunct: ',.?!',
     });
 
-    // Download each piece and concatenate
     const buffers = [];
     for (const r of results) {
       const res = await axios.get(r.url, {
@@ -43,36 +41,63 @@ async function downloadAudio(text, lang, fileName) {
   }
 }
 
-// PRIMARY + ENGLISH only
-async function generateTwoLanguages(stopNames, primaryLang) {
-  const results = {};
-  const langMap = {
-    'mr': 'stop_name_mr',
-    'gu': 'stop_name_gu',
-    'hi': 'stop_name_gu',
-    'en': 'stop_name',
-  };
-
-  const primary = primaryLang === 'en' ? 'en' : primaryLang;
-  const primaryKey = langMap[primary] || 'stop_name';
-  const primaryName = stopNames[primaryKey] || stopNames.stop_name || '';
-
-  if (primary !== 'en' && primaryName) {
-    const text = TEMPLATES[primary](primaryName);
-    const fileName = `ann_${Date.now()}_${primary}_${Math.random().toString(36).substr(2, 5)}.mp3`;
-    const ok = await downloadAudio(text, primary, fileName);
-    if (ok) {
-      results[primary] = { url: `/audio/${fileName}`, text, language: primary, stopName: primaryName };
-    }
+// ⭐ NEW RULE:
+// Client = Gujarati → [gu, hi, en]
+// Client = Marathi  → [mr, hi, en]
+// Client = Hindi    → [hi, en]
+// Client = English  → [en]
+function getLanguageOrder(primaryLang) {
+  switch (primaryLang) {
+    case 'gu': return ['gu', 'hi', 'en'];
+    case 'mr': return ['mr', 'hi', 'en'];
+    case 'hi': return ['hi', 'en'];
+    case 'en': return ['en'];
+    default: return ['en'];
   }
+}
 
-  // English always
-  if (stopNames.stop_name) {
-    const text = TEMPLATES.en(stopNames.stop_name);
-    const fileName = `ann_${Date.now()}_en_${Math.random().toString(36).substr(2, 5)}.mp3`;
-    const ok = await downloadAudio(text, 'en', fileName);
+// Map language code → stop name column
+const LANG_COLUMN = {
+  mr: 'stop_name_mr',
+  gu: 'stop_name_gu',
+  hi: 'stop_name_hi',  // will fallback to mr if missing
+  en: 'stop_name',
+};
+
+async function generateAnnouncements(stopNames, primaryLang) {
+  const results = {};
+  const languages = getLanguageOrder(primaryLang);
+
+  console.log(`🌐 Client language: ${primaryLang} → Announcements: [${languages.join(', ')}]`);
+
+  for (const lang of languages) {
+    // Get stop name for this language
+    let stopName = '';
+
+    if (lang === 'en') {
+      stopName = stopNames.stop_name || '';
+    } else if (lang === 'hi') {
+      // Hindi — prefer hi column, fallback to mr
+      stopName = stopNames.stop_name_hi || stopNames.stop_name_mr || stopNames.stop_name || '';
+    } else if (lang === 'mr') {
+      stopName = stopNames.stop_name_mr || stopNames.stop_name || '';
+    } else if (lang === 'gu') {
+      stopName = stopNames.stop_name_gu || stopNames.stop_name || '';
+    }
+
+    if (!stopName) continue;
+
+    const text = TEMPLATES[lang](stopName);
+    const fileName = `ann_${Date.now()}_${lang}_${Math.random().toString(36).substr(2, 5)}.mp3`;
+    const ok = await downloadAudio(text, lang, fileName);
+
     if (ok) {
-      results.en = { url: `/audio/${fileName}`, text, language: 'en', stopName: stopNames.stop_name };
+      results[lang] = {
+        url: `/audio/${fileName}`,
+        text,
+        language: lang,
+        stopName,
+      };
     }
   }
 
@@ -107,4 +132,4 @@ function cleanupOldAudio() {
 
 setInterval(cleanupOldAudio, 6 * 60 * 60 * 1000);
 
-module.exports = { generateTwoLanguages, haversine, calculateETA, TEMPLATES, cleanupOldAudio };
+module.exports = { generateAnnouncements, getLanguageOrder, haversine, calculateETA, TEMPLATES, cleanupOldAudio };
