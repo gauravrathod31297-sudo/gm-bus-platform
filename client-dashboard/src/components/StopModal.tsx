@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import {
   Button, Dialog, DialogTrigger, DialogSurface, DialogTitle, DialogBody,
   DialogActions, DialogContent, Field, Input, MessageBar, MessageBarBody,
-  makeStyles, tokens, Text, Tab, TabList, Spinner
+  makeStyles, tokens, Text, Tab, TabList, Spinner, Badge
 } from '@fluentui/react-components'
 import { AddRegular, LocationRegular, MapRegular, LinkRegular, SaveRegular, SearchRegular } from '@fluentui/react-icons'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import { Icon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import api from '../services/api'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const useStyles = makeStyles({
   dialog: { maxWidth: '800px', width: '95vw' },
@@ -22,6 +23,7 @@ const useStyles = makeStyles({
   resultItem: { padding: '12px', cursor: 'pointer', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, transition: 'background 0.15s' },
   resultTitle: { fontWeight: '600', fontSize: '14px' },
   resultAddress: { fontSize: '12px', color: tokens.colorNeutralForeground3, marginTop: '2px' },
+  langBadge: { background: '#e0f2fe', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', color: '#0369a1' },
 })
 
 function LocationMarker({ position, setPosition }: any) {
@@ -40,16 +42,23 @@ function MapMover({ position }: any) {
   return null
 }
 
+const LANG_LABELS: Record<string, { name: string; flag: string }> = {
+  en: { name: 'English', flag: '🇬🇧' },
+  mr: { name: 'मराठी', flag: '🇮🇳' },
+  gu: { name: 'ગુજરાતી', flag: '🇮🇳' },
+  hi: { name: 'हिंदी', flag: '🇮🇳' },
+}
+
 interface Props { routeId: string; stopNumber: number; onCreated: () => void }
 
 export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
   const styles = useStyles()
+  const { t, lang } = useLanguage()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'search' | 'gps' | 'map' | 'link' | 'manual'>('search')
   const [form, setForm] = useState({
-    stop_name: '',
-    stop_name_mr: '',
-    stop_name_gu: '',
+    stop_name: '',        // English
+    stop_name_local: '',  // Primary language (mr/gu/hi)
     lat: '', lng: '',
     stop_order: stopNumber,
   })
@@ -65,6 +74,10 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
 
   useEffect(() => { if (tab === 'map') setMapReady(true) }, [tab])
 
+  const primaryLang = lang === 'en' ? 'en' : lang
+  const primaryLabel = LANG_LABELS[primaryLang] || LANG_LABELS.en
+  const showLocalField = primaryLang !== 'en'
+
   const searchPlaces = async () => {
     if (!searchQuery.trim()) return
     setSearching(true); setMsg(null); setSearchResults([])
@@ -72,7 +85,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
       const res = await api.get(`/api/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`)
       if (res.data.success) {
         setSearchResults(res.data.results)
-        if (res.data.results.length === 0) setMsg({ type: 'error', text: 'कोणतीही जागा सापडली नाही' })
+        if (res.data.results.length === 0) setMsg({ type: 'error', text: t('noData') })
       }
     } catch (e) { setMsg({ type: 'error', text: 'Search failed' }) }
     finally { setSearching(false) }
@@ -81,7 +94,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
   const selectResult = (result: any) => {
     setForm({ ...form, lat: result.lat.toFixed(7), lng: result.lng.toFixed(7), stop_name: form.stop_name || result.name })
     setPosition({ lat: result.lat, lng: result.lng })
-    setMsg({ type: 'success', text: `✅ Selected: ${result.name}` })
+    setMsg({ type: 'success', text: `✅ ${result.name}` })
     setTab('map')
   }
 
@@ -97,7 +110,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
         setMsg({ type: 'success', text: `✅ GPS: ${lat}, ${lng}` })
         setGettingGps(false)
       },
-      (err) => { setMsg({ type: 'error', text: `GPS error: ${err.message}` }); setGettingGps(false) },
+      (err) => { setMsg({ type: 'error', text: `GPS: ${err.message}` }); setGettingGps(false) },
       { enableHighAccuracy: true, timeout: 10000 }
     )
   }
@@ -110,44 +123,50 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
       if (res.data.success) {
         setForm({ ...form, lat: res.data.lat.toFixed(7), lng: res.data.lng.toFixed(7) })
         setPosition({ lat: res.data.lat, lng: res.data.lng })
-        setMsg({ type: 'success', text: `✅ Link parsed` })
+        setMsg({ type: 'success', text: '✅ Link parsed' })
         setTab('map')
       }
-    } catch (e: any) { setMsg({ type: 'error', text: e.response?.data?.error || 'Invalid link' }) }
+    } catch (e: any) { setMsg({ type: 'error', text: 'Invalid link' }) }
   }
 
   const save = async () => {
-    if (!form.stop_name.trim()) { setMsg({ type: 'error', text: 'English Stop name required' }); return }
+    if (!form.stop_name.trim()) { setMsg({ type: 'error', text: 'English name required' }); return }
     if (!form.lat || !form.lng) { setMsg({ type: 'error', text: 'Location select करा' }); return }
     setLoading(true); setMsg(null)
     try {
-      await api.post(`/api/route/${routeId}/stops`, {
+      // Build payload — only 2 languages used
+      const payload: any = {
         stop_name: form.stop_name.trim(),
-        stop_name_mr: form.stop_name_mr.trim() || form.stop_name.trim(),
-        stop_name_gu: form.stop_name_gu.trim() || form.stop_name.trim(),
         lat: parseFloat(form.lat),
         lng: parseFloat(form.lng),
         stop_order: form.stop_order,
-      })
-      setMsg({ type: 'success', text: '✅ Stop added!' })
-      setTimeout(() => { setOpen(false); resetForm(); onCreated() }, 1500)
+      }
+      const localName = form.stop_name_local.trim() || form.stop_name.trim()
+      if (primaryLang === 'mr') { payload.stop_name_mr = localName; payload.stop_name_gu = form.stop_name.trim() }
+      else if (primaryLang === 'gu') { payload.stop_name_gu = localName; payload.stop_name_mr = form.stop_name.trim() }
+      else if (primaryLang === 'hi') { payload.stop_name_mr = localName; payload.stop_name_gu = form.stop_name.trim() } // hi uses mr column temporarily
+      else { payload.stop_name_mr = form.stop_name.trim(); payload.stop_name_gu = form.stop_name.trim() }
+
+      await api.post(`/api/route/${routeId}/stops`, payload)
+      setMsg({ type: 'success', text: '✅ ' + t('save') })
+      setTimeout(() => { setOpen(false); resetForm(); onCreated() }, 1200)
     } catch (e: any) { setMsg({ type: 'error', text: e.response?.data?.error || 'Failed' }) }
     finally { setLoading(false) }
   }
 
   const resetForm = () => {
-    setForm({ stop_name: '', stop_name_mr: '', stop_name_gu: '', lat: '', lng: '', stop_order: stopNumber })
+    setForm({ stop_name: '', stop_name_local: '', lat: '', lng: '', stop_order: stopNumber })
     setPosition(null); setLink(''); setSearchQuery(''); setSearchResults([]); setMsg(null); setTab('search')
   }
 
   return (
     <Dialog open={open} onOpenChange={(_, d) => { setOpen(d.open); if (!d.open) resetForm() }}>
       <DialogTrigger disableButtonEnhancement>
-        <Button appearance="primary" icon={<AddRegular />}>Add Stop</Button>
+        <Button appearance="primary" icon={<AddRegular />}>{t('addStop')}</Button>
       </DialogTrigger>
       <DialogSurface className={styles.dialog}>
         <DialogBody>
-          <DialogTitle>🚏 Add New Stop</DialogTitle>
+          <DialogTitle>🚏 {t('addStop')}</DialogTitle>
           <DialogContent>
             {msg && (
               <MessageBar intent={msg.type === 'success' ? 'success' : 'error'} style={{ marginBottom: '16px' }}>
@@ -155,44 +174,61 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
               </MessageBar>
             )}
 
-            <Text weight="semibold" style={{ marginBottom: '12px', display: 'block' }}>📍 Stop Names (3 भाषा)</Text>
-            <Field label="Stop Name (English) *" className={styles.field}>
-              <Input value={form.stop_name} onChange={(_, d) => setForm({ ...form, stop_name: d.value })} placeholder="Shivaji Nagar" />
-            </Field>
-            <Field label="Stop Name (मराठी)" className={styles.field}>
-              <Input value={form.stop_name_mr} onChange={(_, d) => setForm({ ...form, stop_name_mr: d.value })} placeholder="शिवाजी नगर" />
-            </Field>
-            <Field label="Stop Name (ગુજરાતી)" className={styles.field}>
-              <Input value={form.stop_name_gu} onChange={(_, d) => setForm({ ...form, stop_name_gu: d.value })} placeholder="શિવાજી નગર" />
-            </Field>
-            <div className={styles.helpText}>
-              💡 Marathi / Gujarati रिकामं सोडलं तर English नाव वापरलं जाईल
+            <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Text weight="semibold">{t('stopNamesTitle')}</Text>
+              <span className={styles.langBadge}>
+                {primaryLabel.flag} {primaryLabel.name} + 🇬🇧 English
+              </span>
             </div>
 
-            <Field label="Stop Order" className={styles.field} style={{ marginTop: '16px' }}>
+            {/* English field — always */}
+            <Field label={t('stopNameEn') + ' *'} className={styles.field}>
+              <Input
+                value={form.stop_name}
+                onChange={(_, d) => setForm({ ...form, stop_name: d.value })}
+                placeholder="Shivaji Nagar"
+              />
+            </Field>
+
+            {/* Local language field — only if not English */}
+            {showLocalField && (
+              <Field label={t('stopNameLocal')} className={styles.field}>
+                <Input
+                  value={form.stop_name_local}
+                  onChange={(_, d) => setForm({ ...form, stop_name_local: d.value })}
+                  placeholder={
+                    primaryLang === 'mr' ? 'शिवाजी नगर' :
+                    primaryLang === 'gu' ? 'શિવાજી નગર' : 'शिवाजी नगर'
+                  }
+                />
+              </Field>
+            )}
+
+            <div className={styles.helpText}>{t('helpText')}</div>
+
+            <Field label={t('stopOrder')} className={styles.field} style={{ marginTop: '16px' }}>
               <Input type="number" value={String(form.stop_order)} onChange={(_, d) => setForm({ ...form, stop_order: parseInt(d.value) || stopNumber })} />
             </Field>
 
-            <Text weight="semibold" style={{ margin: '16px 0 12px', display: 'block' }}>🗺️ Location निवडा</Text>
+            <Text weight="semibold" style={{ margin: '16px 0 12px', display: 'block' }}>🗺️ {t('location')}</Text>
             <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as any)}>
-              <Tab value="search" icon={<SearchRegular />}>Search</Tab>
+              <Tab value="search" icon={<SearchRegular />}>{t('search')}</Tab>
               <Tab value="gps" icon={<LocationRegular />}>GPS</Tab>
               <Tab value="map" icon={<MapRegular />}>Map</Tab>
               <Tab value="link" icon={<LinkRegular />}>Link</Tab>
-              <Tab value="manual" icon={<SaveRegular />}>Manual</Tab>
+              <Tab value="manual" icon={<SaveRegular />}>{t('manual')}</Tab>
             </TabList>
 
             <div className={styles.tabContent}>
               {tab === 'search' && (
                 <div>
-                  <Text>जागेचं नाव टाका आणि search करा</Text>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                     <Input value={searchQuery} onChange={(_, d) => setSearchQuery(d.value)}
                       onKeyDown={(e) => e.key === 'Enter' && searchPlaces()}
-                      placeholder="Shivaji Nagar Pune..." style={{ flex: 1 }}
+                      placeholder={t('searchPlace')} style={{ flex: 1 }}
                       contentBefore={<SearchRegular />} />
                     <Button appearance="primary" onClick={searchPlaces} disabled={searching}>
-                      {searching ? <Spinner size="tiny" /> : 'Search'}
+                      {searching ? <Spinner size="tiny" /> : t('search')}
                     </Button>
                   </div>
                   {searchResults.length > 0 && (
@@ -211,39 +247,30 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
               )}
 
               {tab === 'gps' && (
-                <div>
-                  <Text>तुमच्या device ची current location वापरा</Text>
-                  <Button appearance="primary" icon={<LocationRegular />} onClick={getGpsLocation} disabled={gettingGps} style={{ marginTop: '12px' }}>
-                    {gettingGps ? '📍 मिळवत आहे...' : '📍 Current Location'}
-                  </Button>
-                </div>
+                <Button appearance="primary" icon={<LocationRegular />} onClick={getGpsLocation} disabled={gettingGps} style={{ marginTop: '12px' }}>
+                  {gettingGps ? '📍...' : '📍 ' + t('currentLocation')}
+                </Button>
               )}
 
               {tab === 'map' && (
-                <div>
-                  <Text>Map वर tap करून location select करा</Text>
-                  <div className={styles.mapWrap}>
-                    {mapReady && (
-                      <MapContainer center={[position?.lat || 18.5204, position?.lng || 73.8567]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                        <LocationMarker position={position} setPosition={(p: any) => {
-                          setPosition(p); setForm({ ...form, lat: p.lat.toFixed(7), lng: p.lng.toFixed(7) })
-                        }} />
-                        {position && <MapMover position={position} />}
-                      </MapContainer>
-                    )}
-                  </div>
+                <div className={styles.mapWrap}>
+                  {mapReady && (
+                    <MapContainer center={[position?.lat || 18.5204, position?.lng || 73.8567]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
+                      <LocationMarker position={position} setPosition={(p: any) => {
+                        setPosition(p); setForm({ ...form, lat: p.lat.toFixed(7), lng: p.lng.toFixed(7) })
+                      }} />
+                      {position && <MapMover position={position} />}
+                    </MapContainer>
+                  )}
                 </div>
               )}
 
               {tab === 'link' && (
-                <div>
-                  <Text>Google Maps link paste करा</Text>
-                  <Field className={styles.field} style={{ marginTop: '12px' }}>
-                    <Input value={link} onChange={(_, d) => setLink(d.value)} placeholder="https://maps.google.com/..."
-                      contentAfter={<Button size="small" appearance="primary" onClick={parseLink}>Parse</Button>} />
-                  </Field>
-                </div>
+                <Field className={styles.field} style={{ marginTop: '12px' }}>
+                  <Input value={link} onChange={(_, d) => setLink(d.value)} placeholder="https://maps.google.com/..."
+                    contentAfter={<Button size="small" appearance="primary" onClick={parseLink}>Parse</Button>} />
+                </Field>
               )}
 
               {tab === 'manual' && (
@@ -260,17 +287,14 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
 
             {form.lat && form.lng && (
               <div className={styles.preview}>
-                <Text weight="semibold" size={300}>📍 Selected Location:</Text>
-                <Text size={200} style={{ display: 'block', marginTop: '4px' }}>
-                  Lat: <b>{form.lat}</b> | Lng: <b>{form.lng}</b>
-                </Text>
+                <Text size={200}>📍 {form.lat} , {form.lng}</Text>
               </div>
             )}
           </DialogContent>
           <DialogActions>
-            <Button appearance="secondary" onClick={() => { setOpen(false); resetForm() }}>Cancel</Button>
+            <Button appearance="secondary" onClick={() => { setOpen(false); resetForm() }}>{t('cancel')}</Button>
             <Button appearance="primary" icon={<SaveRegular />} onClick={save} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Stop'}
+              {loading ? '...' : t('save')}
             </Button>
           </DialogActions>
         </DialogBody>

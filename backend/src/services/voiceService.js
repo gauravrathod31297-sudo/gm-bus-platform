@@ -12,60 +12,52 @@ const TEMPLATES = {
   en: (stop) => `Next stop ${stop}. Please be ready.`,
 };
 
-// Generate audio for SPECIFIC languages (based on client settings)
-async function generateSelectedLanguages(stopNames, languages) {
+// PRIMARY + ENGLISH only
+async function generateTwoLanguages(stopNames, primaryLang) {
   const results = {};
-  const langList = (languages || 'mr,gu,en').split(',').map(l => l.trim());
+  const langMap = {
+    'mr': 'stop_name_mr',
+    'gu': 'stop_name_gu',
+    'hi': 'stop_name_gu', // Hindi uses gu column temporarily
+    'en': 'stop_name',
+  };
 
-  for (const code of langList) {
-    const stopName = stopNames[code] || stopNames.en || stopNames[Object.keys(stopNames)[0]];
-    if (!stopName) continue;
+  // Primary language
+  const primary = primaryLang === 'en' ? 'en' : primaryLang;
+  const primaryKey = langMap[primary] || 'stop_name';
+  const primaryName = stopNames[primaryKey] || stopNames.stop_name || '';
 
+  if (primary !== 'en' && primaryName) {
     try {
-      const text = TEMPLATES[code](stopName);
-      const fileName = `ann_${Date.now()}_${code}_${Math.random().toString(36).substr(2, 5)}.mp3`;
+      const text = TEMPLATES[primary](primaryName);
+      const fileName = `ann_${Date.now()}_${primary}_${Math.random().toString(36).substr(2, 5)}.mp3`;
       const filePath = path.join(AUDIO_DIR, fileName);
 
       await new Promise((resolve, reject) => {
-        const gtts = new gTTS(text, code);
+        const gtts = new gTTS(text, primary);
         gtts.save(filePath, (err) => err ? reject(err) : resolve());
       });
-
-      results[code] = {
-        url: `/audio/${fileName}`,
-        text,
-        language: code,
-        stopName,
-      };
-    } catch (err) {
-      console.error(`TTS ${code} error:`, err.message);
-    }
+      results[primary] = { url: `/audio/${fileName}`, text, language: primary, stopName: primaryName };
+    } catch (err) { console.error(`TTS ${primary}:`, err.message); }
   }
 
+  // English (always secondary)
+  if (stopNames.stop_name) {
+    try {
+      const text = TEMPLATES.en(stopNames.stop_name);
+      const fileName = `ann_${Date.now()}_en_${Math.random().toString(36).substr(2, 5)}.mp3`;
+      const filePath = path.join(AUDIO_DIR, fileName);
+
+      await new Promise((resolve, reject) => {
+        const gtts = new gTTS(text, 'en');
+        gtts.save(filePath, (err) => err ? reject(err) : resolve());
+      });
+      results.en = { url: `/audio/${fileName}`, text, language: 'en', stopName: stopNames.stop_name };
+    } catch (err) { console.error('TTS en:', err.message); }
+  }
+
+  console.log(`🔊 Announcements generated for: ${Object.keys(results).join(', ')}`);
   return results;
-}
-
-// Generate ALL languages (legacy)
-async function generateAllLanguages(stopNameMr, stopNameGu, stopNameEn) {
-  return generateSelectedLanguages(
-    { mr: stopNameMr, gu: stopNameGu, en: stopNameEn },
-    'mr,gu,en'
-  );
-}
-
-async function generateAnnouncement(stopName, lang = 'mr') {
-  const template = TEMPLATES[lang] || TEMPLATES.en;
-  const text = template(stopName);
-  const fileName = `ann_${Date.now()}_${lang}.mp3`;
-  const filePath = path.join(AUDIO_DIR, fileName);
-
-  return new Promise((resolve, reject) => {
-    const gtts = new gTTS(text, lang);
-    gtts.save(filePath, (err) => {
-      if (err) reject(err);
-      else resolve({ url: `/audio/${fileName}`, text, language: lang, stopName });
-    });
-  });
 }
 
 function haversine(lat1, lng1, lat2, lng2) {
@@ -95,12 +87,4 @@ function cleanupOldAudio() {
 
 setInterval(cleanupOldAudio, 6 * 60 * 60 * 1000);
 
-module.exports = {
-  generateAnnouncement,
-  generateAllLanguages,
-  generateSelectedLanguages,
-  haversine,
-  calculateETA,
-  TEMPLATES,
-  cleanupOldAudio,
-};
+module.exports = { generateTwoLanguages, haversine, calculateETA, TEMPLATES, cleanupOldAudio };

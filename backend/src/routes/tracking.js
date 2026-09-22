@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const tenantMiddleware = require('../middleware/tenant');
-const { generateSelectedLanguages, calculateETA, haversine } = require('../services/voiceService');
+const masterDb = require('../config/database');
+const { generateTwoLanguages, calculateETA, haversine } = require('../services/voiceService');
 
 router.use(authenticate, tenantMiddleware);
 
@@ -41,22 +42,26 @@ router.post('/eta', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Announcement — uses client's language settings
+// Announcement — uses client's preferred_language
 router.post('/announcement', async (req, res) => {
   try {
-    const { stop_name, stop_name_mr, stop_name_gu, stop_name_en } = req.body;
-    if (!stop_name && !stop_name_mr) return res.status(400).json({ error: 'stop_name required' });
+    const { stop_name, stop_name_mr, stop_name_gu } = req.body;
+    if (!stop_name) return res.status(400).json({ error: 'stop_name required' });
 
-    // Get client settings
-    const settings = await req.tenantDb.query('SELECT voice_language FROM client_settings LIMIT 1');
-    const languages = settings.rows[0]?.voice_language || 'mr,gu,en';
+    // Get client preferred_language
+    const clientId = req.user.client_id;
+    const { rows: clients } = await masterDb.query(
+      'SELECT preferred_language FROM clients WHERE id=$1',
+      [clientId]
+    );
+    const primaryLang = clients[0]?.preferred_language || 'en';
 
-    const results = await generateSelectedLanguages(
-      { mr: stop_name_mr || stop_name, gu: stop_name_gu || stop_name, en: stop_name_en || stop_name },
-      languages
+    const results = await generateTwoLanguages(
+      { stop_name, stop_name_mr, stop_name_gu },
+      primaryLang
     );
 
-    res.json({ success: true, languages_used: languages, announcements: results });
+    res.json({ success: true, primary_language: primaryLang, announcements: results });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
