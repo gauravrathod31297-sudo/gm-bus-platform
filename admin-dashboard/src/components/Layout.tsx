@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { makeStyles, tokens, Button } from '@fluentui/react-components'
-import { BoardRegular, PeopleRegular, SignOutRegular } from '@fluentui/react-icons'
+import { BoardRegular, PeopleRegular, SignOutRegular, CreditCardRegular, DataTrendingRegular } from '@fluentui/react-icons'
 const useStyles = makeStyles({
   root: { display: 'flex', minHeight: '100vh', background: '#f5f5f5' },
   sidebar: { width: '240px', background: 'white', borderRight: `1px solid ${tokens.colorNeutralStroke2}`, display: 'flex', flexDirection: 'column' },
@@ -19,6 +19,8 @@ export default function Layout() {
   const items = [
     { path: '/', label: 'Dashboard', icon: <BoardRegular /> },
     { path: '/clients', label: 'Clients', icon: <PeopleRegular /> },
+    { path: '/subscriptions', label: 'Subscriptions', icon: <CreditCardRegular /> },
+    { path: '/analytics', label: 'Analytics', icon: <DataTrendingRegular /> },
   ]
   return (
     <div className={s.root}>

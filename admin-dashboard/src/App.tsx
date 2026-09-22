@@ -3,6 +3,8 @@ import Login from './pages/Login'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
+import Subscriptions from './pages/Subscriptions'
+import Analytics from './pages/Analytics'
 function RequireAuth({ children }: { children: any }) {
   const token = localStorage.getItem('admin_token')
   if (!token) return <Navigate to="/login" replace />
@@ -15,6 +17,8 @@ export default function App() {
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Dashboard />} />
         <Route path="clients" element={<Clients />} />
+        <Route path="subscriptions" element={<Subscriptions />} />
+        <Route path="analytics" element={<Analytics />} />
       </Route>
     </Routes>
   )
