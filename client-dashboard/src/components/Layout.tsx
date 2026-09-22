@@ -7,6 +7,7 @@ import {
 } from '@fluentui/react-icons'
 import { useLanguage } from '../i18n/LanguageContext'
 import LanguageSwitcher from './LanguageSwitcher'
+import { useTheme } from '../contexts/ThemeContext'
 
 const useStyles = makeStyles({
   root: { display: 'flex', minHeight: '100vh', backgroundColor: tokens.colorNeutralBackground2 },
@@ -46,6 +47,7 @@ export default function Layout({ children, title }: Props) {
   const loc = useLocation()
   const user = JSON.parse(localStorage.getItem('client_user') || '{}')
   const { t, lang } = useLanguage()
+  const { dark, toggle } = useTheme()
 
   const logout = () => {
     localStorage.removeItem('client_token')
@@ -102,6 +104,7 @@ export default function Layout({ children, title }: Props) {
         <div className={styles.header}>
           <div className={styles.headerTitle}>{title}</div>
           <div className={styles.headerRight}>
+            <Button appearance="subtle" icon={dark ? "☀️" : "🌙"} onClick={toggle} title="Toggle theme" />
             <LanguageSwitcher />
           </div>
         </div>
