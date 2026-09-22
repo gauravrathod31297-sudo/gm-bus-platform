@@ -4,6 +4,8 @@ import Dashboard from './pages/Dashboard'
 import Buses from './pages/Buses'
 import RoutesPage from './pages/RoutesPage'
 import Stops from './pages/Stops'
+import Drivers from './pages/Drivers'
+import TripHistory from './pages/TripHistory'
 import LiveMap from './pages/LiveMap'
 import Settings from './pages/Settings'
 import VoiceSettings from './pages/VoiceSettings'
@@ -20,7 +22,9 @@ function App() {
       <Route path="/stops" element={<Guard><Stops /></Guard>} />
       <Route path="/live" element={<Guard><LiveMap /></Guard>} />
       <Route path="/settings" element={<Guard><Settings /></Guard>} />
-      <Route path="/voice" element={<Guard><VoiceSettings /></Guard>} />
+      <Route path="/drivers" element={<Drivers />} />
+          <Route path="/trips" element={<TripHistory />} />
+          <Route path="/voice" element={<Guard><VoiceSettings /></Guard>} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )

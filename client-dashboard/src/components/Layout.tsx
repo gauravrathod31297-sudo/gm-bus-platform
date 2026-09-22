@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Button, makeStyles, tokens } from '@fluentui/react-components'
 import {
   BoardRegular, VehicleBusRegular, MapRegular, LocationRegular,
-  SettingsRegular, SignOutRegular, Speaker2Regular
+  SettingsRegular, SignOutRegular, Speaker2Regular, PeopleRegular, ClockRegular
 } from '@fluentui/react-icons'
 import { useLanguage } from '../i18n/LanguageContext'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -60,6 +60,8 @@ export default function Layout({ children, title }: Props) {
     { path: '/routes', label: t('routes'), icon: <MapRegular /> },
     { path: '/stops', label: t('stops'), icon: <LocationRegular /> },
     { path: '/live', label: t('liveTracking'), icon: <LocationRegular /> },
+    { path: '/drivers', label: t('driverManagement'), icon: <PeopleRegular /> },
+    { path: '/trips', label: t('tripHistory'), icon: <ClockRegular /> },
     { path: '/voice', label: t('voiceSettings'), icon: <Speaker2Regular /> },
     { path: '/settings', label: t('settings'), icon: <SettingsRegular /> },
   ]
