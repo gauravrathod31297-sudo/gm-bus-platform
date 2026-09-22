@@ -17,18 +17,27 @@ const { initSocket } = require('./services/socketService');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'] }
 });
 
-app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.options('*', cors());
+
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
-  message: 'Too many requests'
+  message: 'Too many requests',
+  skip: (req) => req.method === 'OPTIONS'
 });
 app.use('/api/', limiter);
 
@@ -42,27 +51,14 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/audio', express.static('public/audio'));
 
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'GM Bus Tracking Backend',
-    domain: process.env.DOMAIN,
-    timestamp: new Date().toISOString()
-  });
+  res.json({ status: 'ok', service: 'GM Bus Tracking Backend', domain: process.env.DOMAIN, timestamp: new Date().toISOString() });
 });
 
-app.get('/', (req, res) => {
-  res.json({
-    name: 'GM Bus Tracking API',
-    version: '1.0.0'
-  });
-});
+app.get('/', (req, res) => res.json({ name: 'GM Bus Tracking API', version: '1.0.0' }));
 
 initSocket(io);
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
+app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use((err, req, res, next) => {
   console.error('Server Error:', err.stack);
   res.status(500).json({ error: 'Internal server error' });
@@ -76,6 +72,6 @@ server.listen(PORT, () => {
   console.log('═══════════════════════════════════════════');
   console.log(`📡 Port:    ${PORT}`);
   console.log(`🌐 Domain:  ${process.env.DOMAIN}`);
-  console.log(`🌍 Mode:    ${process.env.NODE_ENV}`);
+  console.log(`🔓 CORS:    localhost:5173, localhost:3000`);
   console.log('═══════════════════════════════════════════');
 });
