@@ -19,9 +19,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/api/bus').then(r => setBuses(r.data)).catch(() => {}),
-      api.get('/api/route').then(r => setRoutes(r.data)).catch(() => {}),
-      api.get('/api/tracking/live').then(r => setLive(r.data)).catch(() => {}),
+      api.get('/api/bus').then((r: any) => setBuses(r.data)).catch(() => {}),
+      api.get('/api/route').then((r: any) => setRoutes(r.data)).catch(() => {}),
+      api.get('/api/tracking/live').then((r: any) => setLive(r.data)).catch(() => {}),
     ]).finally(() => setLoading(false))
   }, [])
 
