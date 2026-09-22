@@ -1,0 +1,300 @@
+import { useState, useEffect } from 'react'
+import {
+  Button, Dialog, DialogTrigger, DialogSurface, DialogTitle, DialogBody,
+  DialogActions, DialogContent, Field, Input, Select, MessageBar, MessageBarBody,
+  makeStyles, tokens, Text, Tab, TabList
+} from '@fluentui/react-components'
+import { AddRegular, LocationRegular, MapRegular, LinkRegular, SaveRegular } from '@fluentui/react-icons'
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { Icon } from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import api from '../services/api'
+
+const useStyles = makeStyles({
+  dialog: { maxWidth: '700px', width: '95vw' },
+  field: { marginBottom: '16px', width: '100%' },
+  mapWrap: { height: '350px', borderRadius: '8px', overflow: 'hidden', marginTop: '12px', border: `1px solid ${tokens.colorNeutralStroke1}` },
+  tabContent: { paddingTop: '16px' },
+  coords: { display: 'flex', gap: '12px' },
+  helpText: { fontSize: '12px', color: tokens.colorNeutralForeground3, marginTop: '4px' },
+  preview: { background: tokens.colorNeutralBackground2, padding: '12px', borderRadius: '8px', marginTop: '12px' },
+})
+
+// Map click handler
+function LocationMarker({ position, setPosition }: any) {
+  useMapEvents({
+    click(e: any) {
+      setPosition(e.latlng)
+    },
+  })
+  return position ? (
+    <Marker position={position} icon={new Icon({
+      iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#dc2626" width="40" height="40"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'),
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+    })} />
+  ) : null
+}
+
+interface Props {
+  routeId: string
+  stopNumber: number
+  onCreated: () => void
+}
+
+export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
+  const styles = useStyles()
+  const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<'gps' | 'map' | 'link' | 'manual'>('gps')
+  const [form, setForm] = useState({
+    stop_name: '',
+    stop_name_mr: '',
+    stop_name_gu: '',
+    lat: '',
+    lng: '',
+    stop_order: stopNumber,
+    announcement_text: '',
+  })
+  const [position, setPosition] = useState<any>(null)
+  const [mapReady, setMapReady] = useState(false)
+  const [link, setLink] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [gettingGps, setGettingGps] = useState(false)
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    if (tab === 'map') setMapReady(true)
+  }, [tab])
+
+  // GPS Location
+  const getGpsLocation = () => {
+    if (!navigator.geolocation) {
+      setMsg({ type: 'error', text: 'GPS not supported in this browser' })
+      return
+    }
+    setGettingGps(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(7)
+        const lng = pos.coords.longitude.toFixed(7)
+        setForm({ ...form, lat, lng })
+        setPosition({ lat: parseFloat(lat), lng: parseFloat(lng) })
+        setMsg({ type: 'success', text: `✅ GPS: ${lat}, ${lng}` })
+        setGettingGps(false)
+      },
+      (err) => {
+        setMsg({ type: 'error', text: `GPS error: ${err.message}` })
+        setGettingGps(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
+  // Parse Google Maps Link
+  const parseLink = async () => {
+    if (!link.trim()) return
+    setMsg(null)
+    try {
+      const res = await api.post('/api/tracking/parse-link', { url: link.trim() })
+      if (res.data.success) {
+        setForm({ ...form, lat: res.data.lat.toFixed(7), lng: res.data.lng.toFixed(7) })
+        setPosition({ lat: res.data.lat, lng: res.data.lng })
+        setMsg({ type: 'success', text: `✅ Link parsed: ${res.data.lat}, ${res.data.lng}` })
+      }
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Invalid link' })
+    }
+  }
+
+  // Save Stop
+  const save = async () => {
+    if (!form.stop_name.trim()) {
+      setMsg({ type: 'error', text: 'Stop name required' })
+      return
+    }
+    if (!form.lat || !form.lng) {
+      setMsg({ type: 'error', text: 'Location select करा (GPS/Map/Link/Manual)' })
+      return
+    }
+    setLoading(true)
+    setMsg(null)
+    try {
+      await api.post(`/api/route/${routeId}/stops`, {
+        stop_name: form.stop_name,
+        stop_name_mr: form.stop_name_mr || form.stop_name,
+        stop_name_gu: form.stop_name_gu || form.stop_name,
+        lat: parseFloat(form.lat),
+        lng: parseFloat(form.lng),
+        stop_order: form.stop_order,
+        announcement_text: form.announcement_text,
+      })
+      setMsg({ type: 'success', text: '✅ Stop added!' })
+      setTimeout(() => {
+        setOpen(false)
+        resetForm()
+        onCreated()
+      }, 1500)
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Failed to save' })
+    } finally { setLoading(false) }
+  }
+
+  const resetForm = () => {
+    setForm({
+      stop_name: '',
+      stop_name_mr: '',
+      stop_name_gu: '',
+      lat: '',
+      lng: '',
+      stop_order: stopNumber,
+      announcement_text: '',
+    })
+    setPosition(null)
+    setLink('')
+    setMsg(null)
+    setTab('gps')
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(_, d) => { setOpen(d.open); if (!d.open) resetForm() }}>
+      <DialogTrigger disableButtonEnhancement>
+        <Button appearance="primary" icon={<AddRegular />}>Add Stop</Button>
+      </DialogTrigger>
+      <DialogSurface className={styles.dialog}>
+        <DialogBody>
+          <DialogTitle>🚏 Add New Stop</DialogTitle>
+          <DialogContent>
+            {msg && (
+              <MessageBar intent={msg.type === 'success' ? 'success' : 'error'} style={{ marginBottom: '16px' }}>
+                <MessageBarBody>{msg.text}</MessageBarBody>
+              </MessageBar>
+            )}
+
+            {/* Stop Names */}
+            <Text weight="semibold" style={{ marginBottom: '12px', display: 'block' }}>📍 Stop Names (सर्व भाषा)</Text>
+            <Field label="Stop Name (English) *" className={styles.field}>
+              <Input value={form.stop_name} onChange={(_, d) => setForm({ ...form, stop_name: d.value })} placeholder="Shivaji Nagar" />
+            </Field>
+            <Field label="Stop Name (Marathi)" className={styles.field}>
+              <Input value={form.stop_name_mr} onChange={(_, d) => setForm({ ...form, stop_name_mr: d.value })} placeholder="शिवाजी नगर" />
+            </Field>
+            <Field label="Stop Name (Gujarati)" className={styles.field}>
+              <Input value={form.stop_name_gu} onChange={(_, d) => setForm({ ...form, stop_name_gu: d.value })} placeholder="શિવાજી નગર" />
+            </Field>
+            <Field label="Stop Order" className={styles.field}>
+              <Input type="number" value={String(form.stop_order)} onChange={(_, d) => setForm({ ...form, stop_order: parseInt(d.value) || stopNumber })} />
+            </Field>
+
+            {/* Location Options */}
+            <Text weight="semibold" style={{ margin: '16px 0 12px', display: 'block' }}>🗺️ Location निवडा</Text>
+            
+            <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as any)}>
+              <Tab value="gps" icon={<LocationRegular />}>GPS</Tab>
+              <Tab value="map" icon={<MapRegular />}>Map Pin</Tab>
+              <Tab value="link" icon={<LinkRegular />}>Link</Tab>
+              <Tab value="manual" icon={<SaveRegular />}>Manual</Tab>
+            </TabList>
+
+            <div className={styles.tabContent}>
+              {/* GPS Tab */}
+              {tab === 'gps' && (
+                <div>
+                  <Text>तुमच्या device ची current location वापरा</Text>
+                  <div className={styles.helpText}>GPS permission allow करा</div>
+                  <Button
+                    appearance="primary"
+                    icon={<LocationRegular />}
+                    onClick={getGpsLocation}
+                    disabled={gettingGps}
+                    style={{ marginTop: '12px' }}
+                  >
+                    {gettingGps ? '📍 Location मिळवत आहे...' : '📍 Current Location मिळवा'}
+                  </Button>
+                </div>
+              )}
+
+              {/* Map Tab */}
+              {tab === 'map' && (
+                <div>
+                  <Text>Map वर tap करून location select करा</Text>
+                  <div className={styles.mapWrap}>
+                    {mapReady && (
+                      <MapContainer center={[18.5204, 73.8567]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          attribution='&copy; OpenStreetMap'
+                        />
+                        <LocationMarker position={position} setPosition={(p: any) => {
+                          setPosition(p)
+                          setForm({ ...form, lat: p.lat.toFixed(7), lng: p.lng.toFixed(7) })
+                        }} />
+                      </MapContainer>
+                    )}
+                  </div>
+                  <div className={styles.helpText}>💡 Map वर click करा → Pin drop होईल</div>
+                </div>
+              )}
+
+              {/* Link Tab */}
+              {tab === 'link' && (
+                <div>
+                  <Text>Google Maps link paste करा</Text>
+                  <div className={styles.helpText}>
+                    उदा. https://maps.google.com/?q=18.5204,73.8567<br/>
+                    किंवा https://www.google.com/maps/@18.5204,73.8567,15z
+                  </div>
+                  <Field className={styles.field} style={{ marginTop: '12px' }}>
+                    <Input
+                      value={link}
+                      onChange={(_, d) => setLink(d.value)}
+                      placeholder="https://maps.google.com/..."
+                      contentAfter={
+                        <Button size="small" appearance="primary" onClick={parseLink}>Parse</Button>
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {/* Manual Tab */}
+              {tab === 'manual' && (
+                <div className={styles.coords}>
+                  <Field label="Latitude" className={styles.field}>
+                    <Input
+                      value={form.lat}
+                      onChange={(_, d) => setForm({ ...form, lat: d.value })}
+                      placeholder="18.5204000"
+                    />
+                  </Field>
+                  <Field label="Longitude" className={styles.field}>
+                    <Input
+                      value={form.lng}
+                      onChange={(_, d) => setForm({ ...form, lng: d.value })}
+                      placeholder="73.8567000"
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+
+            {/* Selected Location Preview */}
+            {form.lat && form.lng && (
+              <div className={styles.preview}>
+                <Text weight="semibold" size={300}>📍 Selected Location:</Text>
+                <Text size={200} style={{ display: 'block', marginTop: '4px' }}>
+                  Lat: <b>{form.lat}</b> | Lng: <b>{form.lng}</b>
+                </Text>
+              </div>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button appearance="secondary" onClick={() => { setOpen(false); resetForm() }}>Cancel</Button>
+            <Button appearance="primary" icon={<SaveRegular />} onClick={save} disabled={loading}>
+              {loading ? 'Saving...' : 'Save Stop'}
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
+  )
+}
