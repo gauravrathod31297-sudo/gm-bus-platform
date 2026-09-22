@@ -13,7 +13,7 @@ export const translations = {
     account:'Account',changePassword:'Change Password',currentPassword:'Current Password',newPassword:'New Password',updatePassword:'Update Password',name:'Name',email:'Email',
     stopNamesTitle:'Stop Names (2 languages)',
     helpText:'💡 Local name रिकामं सोडलं तर English नाव वापरलं जाईल',
-    languageNote:'Announcements will play in your primary language + English only',
+    languageNote:'Announcements will play in your primary language + English only',quickActions:'Quick Actions',recentActivity:'Recent Activity',weeklyTrips:'Weekly Trips',noActivity:'No activity yet',addFirstBus:'Add your first bus',addFirstBusDesc:'Start by adding a bus to your fleet',viewAll:'View All',updated:'Updated',secondsAgo:'sec ago',minutesAgo:'min ago',liveMap:'Live Map',noLiveBuses:'No buses live right now',trips:'Trips',thisWeek:'this week',
   },
   mr: {
     dashboard:'डॅशबोर्ड',buses:'बस',routes:'मार्ग',stops:'थांबे',liveTracking:'थेट ट्रॅकिंग',voiceSettings:'आवाज सेटिंग्ज',settings:'सेटिंग्ज',logout:'लॉगआउट',
@@ -29,7 +29,7 @@ export const translations = {
     account:'खातं',changePassword:'पासवर्ड बदला',currentPassword:'सध्याचा पासवर्ड',newPassword:'नवीन पासवर्ड',updatePassword:'पासवर्ड अपडेट करा',name:'नाव',email:'ईमेल',
     stopNamesTitle:'थांब्याची नावं (2 भाषा)',
     helpText:'💡 मराठी रिकामं सोडलं तर इंग्रजी नाव वापरलं जाईल',
-    languageNote:'घोषणा फक्त तुमच्या primary भाषेत + इंग्रजीत होतील',
+    languageNote:'घोषणा फक्त तुमच्या primary भाषेत + इंग्रजीत होतील',quickActions:'त्वरित क्रिया',recentActivity:'अलीकडील घडामोडी',weeklyTrips:'साप्ताहिक फेऱ्या',noActivity:'अजून घडामोड नाही',addFirstBus:'पहिली बस जोडा',addFirstBusDesc:'आपल्या ताफ्यात बस जोडून सुरुवात करा',viewAll:'सर्व बघा',updated:'अपडेट',secondsAgo:'सेकंदापूर्वी',minutesAgo:'मिनिटांपूर्वी',liveMap:'थेट नकाशा',noLiveBuses:'आत्ता कोणतीही बस लाइव्ह नाही',trips:'फेऱ्या',thisWeek:'या आठवड्यात',
   },
   gu: {
     dashboard:'ડેશબોર્ડ',buses:'બસ',routes:'માર્ગો',stops:'સ્ટોપ',liveTracking:'લાઇવ ટ્રેકિંગ',voiceSettings:'વોઇસ સેટિંગ્સ',settings:'સેટિંગ્સ',logout:'લોગઆઉટ',
@@ -45,7 +45,7 @@ export const translations = {
     account:'ખાતું',changePassword:'પાસવર્ડ બદલો',currentPassword:'વર્તમાન પાસવર્ડ',newPassword:'નવો પાસવર્ડ',updatePassword:'પાસવર્ડ અપડેટ કરો',name:'નામ',email:'ઇમેઇલ',
     stopNamesTitle:'સ્ટોપનાં નામ (2 ભાષાઓ)',
     helpText:'💡 ગુજરાતી ખાલી છોડો તો અંગ્રેજી નામ વપરાશે',
-    languageNote:'જાહેરાત ફક્ત તમારી પ્રાથમિક ભાષામાં + અંગ્રેજીમાં થશે',
+    languageNote:'જાહેરાત ફક્ત તમારી પ્રાથમિક ભાષામાં + અંગ્રેજીમાં થશે',quickActions:'ઝડપી ક્રિયાઓ',recentActivity:'તાજેતરની પ્રવૃત્તિ',weeklyTrips:'સાપ્તાહિક ટ્રિપ્સ',noActivity:'હજી કોઈ પ્રવૃત્તિ નથી',addFirstBus:'પ્રથમ બસ ઉમેરો',addFirstBusDesc:'તમારા કાફલામાં બસ ઉમેરીને શરૂ કરો',viewAll:'બધું જુઓ',updated:'અપડેટ',secondsAgo:'સેકન્ડ પહેલાં',minutesAgo:'મિનિટ પહેલાં',liveMap:'લાઇવ નકશો',noLiveBuses:'હાલ કોઈ બસ લાઇવ નથી',trips:'ટ્રિપ્સ',thisWeek:'આ અઠવાડિયે',
   },
   hi: {
     dashboard:'डैशबोर्ड',buses:'बसें',routes:'मार्ग',stops:'स्टॉप',liveTracking:'लाइव ट्रैकिंग',voiceSettings:'वॉइस सेटिंग्स',settings:'सेटिंग्स',logout:'लॉगआउट',
@@ -61,7 +61,7 @@ export const translations = {
     account:'खाता',changePassword:'पासवर्ड बदलें',currentPassword:'वर्तमान पासवर्ड',newPassword:'नया पासवर्ड',updatePassword:'पासवर्ड अपडेट करें',name:'नाम',email:'ईमेल',
     stopNamesTitle:'स्टॉप के नाम (2 भाषाएं)',
     helpText:'💡 हिंदी खाली छोड़ें तो अंग्रेजी नाम इस्तेमाल होगा',
-    languageNote:'घोषणाएं केवल आपकी प्राथमिक भाषा + अंग्रेजी में होंगी',
+    languageNote:'घोषणाएं केवल आपकी प्राथमिक भाषा + अंग्रेजी में होंगी',quickActions:'त्वरित क्रियाएं',recentActivity:'हाल की गतिविधि',weeklyTrips:'साप्ताहिक ट्रिप',noActivity:'अभी कोई गतिविधि नहीं',addFirstBus:'पहली बस जोड़ें',addFirstBusDesc:'अपने बेड़े में बस जोड़कर शुरू करें',viewAll:'सभी देखें',updated:'अपडेट',secondsAgo:'सेकंड पहले',minutesAgo:'मिनट पहले',liveMap:'लाइव नक्शा',noLiveBuses:'अभी कोई बस लाइव नहीं',trips:'ट्रिप',thisWeek:'इस हफ्ते',
   },
 }
 export type Language = 'en' | 'mr' | 'gu' | 'hi'
