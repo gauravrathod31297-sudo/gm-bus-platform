@@ -29,7 +29,7 @@ export const translations = {
     account:'खातं',changePassword:'पासवर्ड बदला',currentPassword:'सध्याचा पासवर्ड',newPassword:'नवीन पासवर्ड',updatePassword:'पासवर्ड अपडेट करा',name:'नाव',email:'ईमेल',
     stopNamesTitle:'थांब्याची नावं (2 भाषा)',
     helpText:'💡 स्थानिक नाव रिकामं सोडलं तर इंग्रजी नाव वापरलं जाईल',
-    languageNote:'घोषणा फक्त तुमच्या primary भाषेत + इंग्रजीत होतील',quickActions:'त्वरित क्रिया',recentActivity:'अलीकडील घडामोडी',weeklyTrips:'साप्ताहिक फेऱ्या',noActivity:'अजून घडामोड नाही',addFirstBus:'पहिली बस जोडा',addFirstBusDesc:'आपल्या ताफ्यात बस जोडून सुरुवात करा',viewAll:'सर्व बघा',updated:'अपडेट',secondsAgo:'सेकंदापूर्वी',minutesAgo:'मिनिटांपूर्वी',liveMap:'थेट नकाशा',noLiveBuses:'आत्ता कोणतीही बस लाइव्ह नाही',trips:'फेऱ्या',thisWeek:'या आठवड्यात',
+    languageNote:'घोषणा फक्त तुमच्या primary भाषेत + इंग्रजीत होतील',quickActions:'त्वरित क्रिया',recentActivity:'अलीकडील घडामोडी',weeklyTrips:'साप्ताहिक फेऱ्या',noActivity:'अजून घडामोड नाही',addFirstBus:'पहिली बस जोडा',addFirstBusDesc:'आपल्या ताफ्यात बस जोडून सुरुवात करा',viewAll:'सर्व बघा',updated:'अपडेट',secondsAgo:'सेकंदापूर्वी',minutesAgo:'मिनिटांपूर्वी',liveMap:'थेट नकाशा',noLiveBuses:'आत्ता कोणतीही बस लाइव्ह नाही',trips:'फेऱ्या',thisWeek:'या आठवड्यात',noStopsYet:'या मार्गासाठी अजून थांबे नाहीत',clickAddStop:'वर "थांबा जोडा" क्लिक करा',englishOnly:'फक्त इंग्रजी',noData:'निकाल सापडले नाहीत',
   },
   gu: {
     dashboard:'ડેશબોર્ડ',buses:'બસ',routes:'માર્ગો',stops:'સ્ટોપ',liveTracking:'લાઇવ ટ્રેકિંગ',voiceSettings:'વોઇસ સેટિંગ્સ',settings:'સેટિંગ્સ',logout:'લોગઆઉટ',
@@ -45,7 +45,7 @@ export const translations = {
     account:'ખાતું',changePassword:'પાસવર્ડ બદલો',currentPassword:'વર્તમાન પાસવર્ડ',newPassword:'નવો પાસવર્ડ',updatePassword:'પાસવર્ડ અપડેટ કરો',name:'નામ',email:'ઇમેઇલ',
     stopNamesTitle:'સ્ટોપનાં નામ (2 ભાષાઓ)',
     helpText:'💡 ગુજરાતી ખાલી છોડો તો અંગ્રેજી નામ વપરાશે',
-    languageNote:'જાહેરાત ફક્ત તમારી પ્રાથમિક ભાષામાં + અંગ્રેજીમાં થશે',quickActions:'ઝડપી ક્રિયાઓ',recentActivity:'તાજેતરની પ્રવૃત્તિ',weeklyTrips:'સાપ્તાહિક ટ્રિપ્સ',noActivity:'હજી કોઈ પ્રવૃત્તિ નથી',addFirstBus:'પ્રથમ બસ ઉમેરો',addFirstBusDesc:'તમારા કાફલામાં બસ ઉમેરીને શરૂ કરો',viewAll:'બધું જુઓ',updated:'અપડેટ',secondsAgo:'સેકન્ડ પહેલાં',minutesAgo:'મિનિટ પહેલાં',liveMap:'લાઇવ નકશો',noLiveBuses:'હાલ કોઈ બસ લાઇવ નથી',trips:'ટ્રિપ્સ',thisWeek:'આ અઠવાડિયે',
+    languageNote:'જાહેરાત ફક્ત તમારી પ્રાથમિક ભાષામાં + અંગ્રેજીમાં થશે',quickActions:'ઝડપી ક્રિયાઓ',recentActivity:'તાજેતરની પ્રવૃત્તિ',weeklyTrips:'સાપ્તાહિક ટ્રિપ્સ',noActivity:'હજી કોઈ પ્રવૃત્તિ નથી',addFirstBus:'પ્રથમ બસ ઉમેરો',addFirstBusDesc:'તમારા કાફલામાં બસ ઉમેરીને શરૂ કરો',viewAll:'બધું જુઓ',updated:'અપડેટ',secondsAgo:'સેકન્ડ પહેલાં',minutesAgo:'મિનિટ પહેલાં',liveMap:'લાઇવ નકશો',noLiveBuses:'હાલ કોઈ બસ લાઇવ નથી',trips:'ટ્રિપ્સ',thisWeek:'આ અઠવાડિયે',noStopsYet:'આ રૂટ માટે હજી સ્ટોપ નથી',clickAddStop:'ઉપર "સ્ટોપ ઉમેરો" ક્લિક કરો',englishOnly:'ફક્ત અંગ્રેજી',noData:'કોઈ પરિણામ મળ્યું નથી',
   },
   hi: {
     dashboard:'डैशबोर्ड',buses:'बसें',routes:'मार्ग',stops:'स्टॉप',liveTracking:'लाइव ट्रैकिंग',voiceSettings:'वॉइस सेटिंग्स',settings:'सेटिंग्स',logout:'लॉगआउट',
@@ -61,7 +61,7 @@ export const translations = {
     account:'खाता',changePassword:'पासवर्ड बदलें',currentPassword:'वर्तमान पासवर्ड',newPassword:'नया पासवर्ड',updatePassword:'पासवर्ड अपडेट करें',name:'नाम',email:'ईमेल',
     stopNamesTitle:'स्टॉप के नाम (2 भाषाएं)',
     helpText:'💡 हिंदी खाली छोड़ें तो अंग्रेजी नाम इस्तेमाल होगा',
-    languageNote:'घोषणाएं केवल आपकी प्राथमिक भाषा + अंग्रेजी में होंगी',quickActions:'त्वरित क्रियाएं',recentActivity:'हाल की गतिविधि',weeklyTrips:'साप्ताहिक ट्रिप',noActivity:'अभी कोई गतिविधि नहीं',addFirstBus:'पहली बस जोड़ें',addFirstBusDesc:'अपने बेड़े में बस जोड़कर शुरू करें',viewAll:'सभी देखें',updated:'अपडेट',secondsAgo:'सेकंड पहले',minutesAgo:'मिनट पहले',liveMap:'लाइव नक्शा',noLiveBuses:'अभी कोई बस लाइव नहीं',trips:'ट्रिप',thisWeek:'इस हफ्ते',
+    languageNote:'घोषणाएं केवल आपकी प्राथमिक भाषा + अंग्रेजी में होंगी',quickActions:'त्वरित क्रियाएं',recentActivity:'हाल की गतिविधि',weeklyTrips:'साप्ताहिक ट्रिप',noActivity:'अभी कोई गतिविधि नहीं',addFirstBus:'पहली बस जोड़ें',addFirstBusDesc:'अपने बेड़े में बस जोड़कर शुरू करें',viewAll:'सभी देखें',updated:'अपडेट',secondsAgo:'सेकंड पहले',minutesAgo:'मिनट पहले',liveMap:'लाइव नक्शा',noLiveBuses:'अभी कोई बस लाइव नहीं',trips:'ट्रिप',thisWeek:'इस हफ्ते',noStopsYet:'इस मार्ग के लिए अभी कोई स्टॉप नहीं',clickAddStop:'ऊपर "स्टॉप जोड़ें" क्लिक करें',englishOnly:'केवल अंग्रेजी',noData:'कोई परिणाम नहीं मिला',
   },
 }
 export type Language = 'en' | 'mr' | 'gu' | 'hi'
