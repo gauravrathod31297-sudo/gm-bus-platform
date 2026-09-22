@@ -1,0 +1,20 @@
+name: gm_bus_device
+description: GM Bus Device App
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  geolocator: ^10.1.0
+  socket_io_client: ^2.0.3+1
+  permission_handler: ^11.0.1
+  shared_preferences: ^2.2.2
+  http: ^1.1.2
+  provider: ^6.1.1
+  flutter_tts: ^3.8.5
+
+flutter:
+  uses-material-design: true

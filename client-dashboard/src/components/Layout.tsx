@@ -46,6 +46,7 @@ export default function Layout({ children, title }: Props) {
     { path: '/', label: 'Dashboard', icon: <BoardRegular /> },
     { path: '/buses', label: 'Buses', icon: <VehicleBusRegular /> },
     { path: '/routes', label: 'Routes', icon: <MapRegular /> },
+    { path: '/stops', label: 'Stops', icon: <LocationRegular /> },
     { path: '/live', label: 'Live Tracking', icon: <LocationRegular /> },
     { path: '/settings', label: 'Settings', icon: <SettingsRegular /> },
   ]
