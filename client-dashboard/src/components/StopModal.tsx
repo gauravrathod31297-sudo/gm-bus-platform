@@ -85,9 +85,9 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
       const res = await api.get(`/api/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`)
       if (res.data.success) {
         setSearchResults(res.data.results)
-        if (res.data.results.length === 0) setMsg({ type: 'error', text: 'No results found' })
+        if (res.data.results.length === 0) setMsg({ type: 'error', text: t('noData') })
       }
-    } catch (e) { setMsg({ type: 'error', text: 'Search failed' }) }
+    } catch (e) { setMsg({ type: 'error', text: t('noData') }) }
     finally { setSearching(false) }
   }
 
@@ -177,7 +177,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
             <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Text weight="semibold">{t('stopNamesTitle')}</Text>
               <span className={styles.langBadge}>
-                {primaryLabel.flag} {primaryLabel.name} + 🇬🇧 English
+                {primaryLang === "en" ? `🇬🇧 ${t("englishOnly")}` : `${primaryLabel.flag} ${primaryLabel.name} + 🇬🇧 English`}
               </span>
             </div>
 

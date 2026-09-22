@@ -5,6 +5,7 @@ import { Button, Card, Spinner, MessageBar, MessageBarBody,
 import { DeleteRegular, ArrowSyncRegular, LocationRegular } from '@fluentui/react-icons'
 import api from '../services/api'
 import Layout from '../components/Layout'
+import { useLanguage } from '../i18n/LanguageContext'
 import StopModal from '../components/StopModal'
 
 const useStyles = makeStyles({
@@ -15,6 +16,7 @@ const useStyles = makeStyles({
 })
 
 export default function Stops() {
+  const { t } = useLanguage()
   const styles = useStyles()
   const [stops, setStops] = useState<any[]>([])
   const [routes, setRoutes] = useState<any[]>([])
@@ -85,9 +87,9 @@ export default function Stops() {
           <div style={{ padding: '48px', textAlign: 'center' }}><Spinner /></div>
         ) : stops.length === 0 ? (
           <div className={styles.empty}>
-            <Text>या route साठी अजून stops नाहीत</Text>
+            <Text>{t('noStopsYet')}</Text>
             <div style={{ marginTop: '16px' }}>
-              <Text size={200}>वर "Add Stop" क्लिक करा</Text>
+              <Text size={200}>{t('clickAddStop')}</Text>
             </div>
           </div>
         ) : (

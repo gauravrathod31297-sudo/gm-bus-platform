@@ -12,8 +12,8 @@ export const translations = {
     liveBuses:'Live Buses',noActiveBuses:'No active buses',
     account:'Account',changePassword:'Change Password',currentPassword:'Current Password',newPassword:'New Password',updatePassword:'Update Password',name:'Name',email:'Email',
     stopNamesTitle:'Stop Names (2 languages)',
-    helpText:'💡 Local name रिकामं सोडलं तर English नाव वापरलं जाईल',
-    languageNote:'Announcements will play in your primary language + English only',quickActions:'Quick Actions',recentActivity:'Recent Activity',weeklyTrips:'Weekly Trips',noActivity:'No activity yet',addFirstBus:'Add your first bus',addFirstBusDesc:'Start by adding a bus to your fleet',viewAll:'View All',updated:'Updated',secondsAgo:'sec ago',minutesAgo:'min ago',liveMap:'Live Map',noLiveBuses:'No buses live right now',trips:'Trips',thisWeek:'this week',
+    helpText:'💡 If local name is empty, English name will be used',
+    languageNote:'Announcements will play in your primary language + English only',quickActions:'Quick Actions',recentActivity:'Recent Activity',weeklyTrips:'Weekly Trips',noActivity:'No activity yet',addFirstBus:'Add your first bus',addFirstBusDesc:'Start by adding a bus to your fleet',viewAll:'View All',updated:'Updated',secondsAgo:'sec ago',minutesAgo:'min ago',liveMap:'Live Map',noLiveBuses:'No buses live right now',trips:'Trips',thisWeek:'this week',noStopsYet:'No stops added for this route yet',clickAddStop:'Click "Add Stop" above',englishOnly:'English only',noData:'No results found',
   },
   mr: {
     dashboard:'डॅशबोर्ड',buses:'बस',routes:'मार्ग',stops:'थांबे',liveTracking:'थेट ट्रॅकिंग',voiceSettings:'आवाज सेटिंग्ज',settings:'सेटिंग्ज',logout:'लॉगआउट',
@@ -28,7 +28,7 @@ export const translations = {
     liveBuses:'लाइव्ह बस',noActiveBuses:'सक्रिय बस नाही',
     account:'खातं',changePassword:'पासवर्ड बदला',currentPassword:'सध्याचा पासवर्ड',newPassword:'नवीन पासवर्ड',updatePassword:'पासवर्ड अपडेट करा',name:'नाव',email:'ईमेल',
     stopNamesTitle:'थांब्याची नावं (2 भाषा)',
-    helpText:'💡 मराठी रिकामं सोडलं तर इंग्रजी नाव वापरलं जाईल',
+    helpText:'💡 स्थानिक नाव रिकामं सोडलं तर इंग्रजी नाव वापरलं जाईल',
     languageNote:'घोषणा फक्त तुमच्या primary भाषेत + इंग्रजीत होतील',quickActions:'त्वरित क्रिया',recentActivity:'अलीकडील घडामोडी',weeklyTrips:'साप्ताहिक फेऱ्या',noActivity:'अजून घडामोड नाही',addFirstBus:'पहिली बस जोडा',addFirstBusDesc:'आपल्या ताफ्यात बस जोडून सुरुवात करा',viewAll:'सर्व बघा',updated:'अपडेट',secondsAgo:'सेकंदापूर्वी',minutesAgo:'मिनिटांपूर्वी',liveMap:'थेट नकाशा',noLiveBuses:'आत्ता कोणतीही बस लाइव्ह नाही',trips:'फेऱ्या',thisWeek:'या आठवड्यात',
   },
   gu: {
