@@ -1,153 +1,120 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Spinner, Dialog, DialogTrigger, DialogSurface,
-  DialogTitle, DialogBody, DialogActions, DialogContent, Field, Input, MessageBar,
-  MessageBarBody, Table, TableHeader, TableRow, TableHeaderCell,
-  TableBody, TableCell, makeStyles, tokens, Text, Select } from '@fluentui/react-components'
-import { AddRegular, DeleteRegular, ArrowSyncRegular } from '@fluentui/react-icons'
+import { Button, Card, Dialog, DialogTrigger, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, Field, Input, MessageBar, MessageBarBody, Spinner, makeStyles, tokens, Text, Select } from '@fluentui/react-components'
+import { AddRegular, DeleteRegular, EditRegular, SaveRegular, SearchRegular } from '@fluentui/react-icons'
 import api from '../services/api'
 import Layout from '../components/Layout'
+import { useLanguage } from '../i18n/LanguageContext'
+import { showToast } from '../utils/toast'
 
 const useStyles = makeStyles({
-  card: { padding: '24px' },
-  header: { display: 'flex', justifyContent: 'space-between', marginBottom: '16px' },
-  dialog: { maxWidth: '500px', width: '90vw' },
-  field: { marginBottom: '16px', width: '100%' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '12px' },
+  search: { flex: 1, maxWidth: '400px' },
+  table: { background: 'white', borderRadius: '8px', overflow: 'hidden' },
+  row: { display: 'grid', gridTemplateColumns: '60px 1.5fr 2fr 1.5fr 1.5fr 1fr 1.2fr', padding: '14px 16px', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, alignItems: 'center', fontSize: '13px', gap: '8px' },
+  hrow: { background: '#f9fafb', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' as const, color: tokens.colorNeutralForeground3 },
+  field: { marginBottom: '14px' },
+  actions: { display: 'flex', gap: '6px' },
 })
 
 export default function Buses() {
-  const styles = useStyles()
+  const s = useStyles()
+  const { t } = useLanguage()
   const [buses, setBuses] = useState<any[]>([])
   const [routes, setRoutes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState({ bus_number: '', driver_name: '', driver_phone: '', route_id: '', capacity: 40 })
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [search, setSearch] = useState('')
+  const [msg, setMsg] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
 
-  const load = async () => {
+  const load = () => {
     setLoading(true)
-    try {
-      const [b, r] = await Promise.all([api.get('/api/bus'), api.get('/api/route')])
-      setBuses(b.data); setRoutes(r.data)
-    } catch (e) { console.error(e) } finally { setLoading(false) }
+    Promise.all([
+      api.get('/api/bus').then(r => setBuses(r.data)).catch(() => {}),
+      api.get('/api/route').then(r => setRoutes(r.data)).catch(() => {}),
+    ]).finally(() => setLoading(false))
   }
-
   useEffect(() => { load() }, [])
 
-  const create = async () => {
+  const openAdd = () => { setEditing(null); setForm({ bus_number: '', driver_name: '', driver_phone: '', route_id: '', capacity: 40 }); setOpen(true) }
+  const openEdit = (b: any) => { setEditing(b); setForm({ bus_number: b.bus_number, driver_name: b.driver_name || '', driver_phone: b.driver_phone || '', route_id: b.route_id || '', capacity: b.capacity || 40 }); setOpen(true) }
+
+  const save = async () => {
+    if (!form.bus_number) { setMsg({ type: 'error', text: 'Bus number required' }); return }
+    setSaving(true); setMsg(null)
     try {
-      await api.post('/api/bus', { ...form, route_id: form.route_id ? parseInt(form.route_id) : null })
-      setOpen(false)
-      setForm({ bus_number: '', driver_name: '', driver_phone: '', route_id: '', capacity: 40 })
-      setMsg({ type: 'success', text: 'Bus added!' })
-      load()
-    } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Failed' })
-    }
+      const payload = { ...form, route_id: form.route_id || null, capacity: parseInt(String(form.capacity)) || 40 }
+      if (editing) { await api.put(`/api/bus/${editing.id}`, payload); showToast(t('success'), t('saved'), 'success') }
+      else { await api.post('/api/bus', payload); showToast(t('success'), t('saved'), 'success') }
+      setOpen(false); load()
+    } catch (e: any) { setMsg({ type: 'error', text: e.response?.data?.error || 'Failed' }) }
+    finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Delete this bus?')) return
-    try { await api.delete(`/api/bus/${id}`); load() } catch (e) { console.error(e) }
+  const del = async (id: number, num: string) => {
+    if (!confirm(`${t('deleteConfirm')} ${num}`)) return
+    try { await api.delete(`/api/bus/${id}`); showToast(t('success'), t('deleted'), 'success'); load() }
+    catch { showToast(t('error'), 'Delete failed', 'error') }
   }
+
+  const filtered = buses.filter(b => {
+    const q = search.toLowerCase()
+    return !q || (b.bus_number || '').toLowerCase().includes(q) || (b.driver_name || '').toLowerCase().includes(q)
+  })
 
   return (
-    <Layout title="Buses">
-      {msg && <MessageBar intent={msg.type} style={{ marginBottom: '16px' }}>
-        <MessageBarBody>{msg.text}</MessageBarBody></MessageBar>}
+    <Layout title={t('buses')}>
+      <div className={s.header}>
+        <Input className={s.search} placeholder={t('searchAll')} value={search} onChange={(_, d) => setSearch(d.value)} contentBefore={<SearchRegular />} />
+        <Button appearance="primary" icon={<AddRegular />} onClick={openAdd}>{t('addBus')}</Button>
+      </div>
 
-      <Card className={styles.card}>
-        <div className={styles.header}>
-          <Text weight="semibold">All Buses ({buses.length})</Text>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button icon={<ArrowSyncRegular />} onClick={load}>Refresh</Button>
-            <Dialog open={open} onOpenChange={(_, d) => setOpen(d.open)}>
-              <DialogTrigger disableButtonEnhancement>
-                <Button appearance="primary" icon={<AddRegular />}>Add Bus</Button>
-              </DialogTrigger>
-              <DialogSurface className={styles.dialog}>
-                <DialogBody>
-                  <DialogTitle>Add New Bus</DialogTitle>
-                  <DialogContent>
-                    <Field label="Bus Number" required className={styles.field}>
-                      <Input 
-                        value={form.bus_number} 
-                        onChange={(_, d) => setForm({ ...form, bus_number: d.value })} 
-                        placeholder="MH-12-AB-1234"
-                        style={{ width: '100%' }}
-                      />
-                    </Field>
-                    <Field label="Driver Name" className={styles.field}>
-                      <Input 
-                        value={form.driver_name} 
-                        onChange={(_, d) => setForm({ ...form, driver_name: d.value })} 
-                        style={{ width: '100%' }}
-                      />
-                    </Field>
-                    <Field label="Driver Phone" className={styles.field}>
-                      <Input 
-                        value={form.driver_phone} 
-                        onChange={(_, d) => setForm({ ...form, driver_phone: d.value })} 
-                        style={{ width: '100%' }}
-                      />
-                    </Field>
-                    <Field label="Route" className={styles.field}>
-                      <Select 
-                        value={form.route_id} 
-                        onChange={(_, d) => setForm({ ...form, route_id: d.value })}
-                        style={{ width: '100%' }}
-                      >
-                        <option value="">-- Select Route --</option>
-                        {routes.map(r => <option key={r.id} value={r.id}>{r.route_name}</option>)}
-                      </Select>
-                    </Field>
-                    <Field label="Capacity" className={styles.field}>
-                      <Input 
-                        type="number" 
-                        value={String(form.capacity)} 
-                        onChange={(_, d) => setForm({ ...form, capacity: parseInt(d.value) || 40 })} 
-                        style={{ width: '100%' }}
-                      />
-                    </Field>
-                  </DialogContent>
-                  <DialogActions>
-                    <Button appearance="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button appearance="primary" onClick={create}>Save</Button>
-                  </DialogActions>
-                </DialogBody>
-              </DialogSurface>
-            </Dialog>
-          </div>
+      <Dialog open={open} onOpenChange={(_, d) => setOpen(d.open)}>
+        <DialogSurface style={{ maxWidth: '500px' }}>
+          <DialogBody>
+            <DialogTitle>{editing ? '✏️ ' + t('edit') : '🚌 ' + t('addBus')}</DialogTitle>
+            <DialogContent>
+              {msg && <MessageBar intent={msg.type} style={{ marginBottom: '12px' }}><MessageBarBody>{msg.text}</MessageBarBody></MessageBar>}
+              <Field label={t('busNumber') + ' *'} className={s.field}><Input value={form.bus_number} onChange={(_, d) => setForm({ ...form, bus_number: d.value })} placeholder="MH12-1234" /></Field>
+              <Field label={t('driverName')} className={s.field}><Input value={form.driver_name} onChange={(_, d) => setForm({ ...form, driver_name: d.value })} /></Field>
+              <Field label={t('driverPhone')} className={s.field}><Input value={form.driver_phone} onChange={(_, d) => setForm({ ...form, driver_phone: d.value })} /></Field>
+              <Field label={t('route')} className={s.field}>
+                <Select value={String(form.route_id)} onChange={(_, d) => setForm({ ...form, route_id: d.value })}>
+                  <option value="">—</option>
+                  {routes.map((r: any) => <option key={r.id} value={r.id}>{r.route_name}</option>)}
+                </Select>
+              </Field>
+              <Field label={t('capacity')} className={s.field}><Input type="number" value={String(form.capacity)} onChange={(_, d) => setForm({ ...form, capacity: parseInt(d.value) || 40 })} /></Field>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpen(false)}>{t('cancel')}</Button>
+              <Button appearance="primary" icon={<SaveRegular />} onClick={save} disabled={saving}>{saving ? '...' : t('save')}</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {loading ? <Spinner /> : (
+        <div className={s.table}>
+          <div className={`${s.row} ${s.hrow}`}><div>ID</div><div>{t('busNumber')}</div><div>{t('driverName')}</div><div>{t('driverPhone')}</div><div>{t('route')}</div><div>{t('capacity')}</div><div>{t('actions')}</div></div>
+          {filtered.length === 0 ? <div style={{ padding: '32px', textAlign: 'center', color: tokens.colorNeutralForeground3 }}>No buses</div> : filtered.map(b => (
+            <div key={b.id} className={s.row}>
+              <div>#{b.id}</div>
+              <div><strong>{b.bus_number}</strong></div>
+              <div>{b.driver_name || '—'}</div>
+              <div>{b.driver_phone || '—'}</div>
+              <div>{routes.find(r => r.id === b.route_id)?.route_name || '—'}</div>
+              <div>{b.capacity}</div>
+              <div className={s.actions}>
+                <Button size="small" appearance="subtle" icon={<EditRegular />} onClick={() => openEdit(b)} />
+                <Button size="small" appearance="subtle" icon={<DeleteRegular />} onClick={() => del(b.id, b.bus_number)} />
+              </div>
+            </div>
+          ))}
         </div>
-
-        {loading ? <div style={{ padding: '48px', textAlign: 'center' }}><Spinner /></div> : (
-          <Table>
-            <TableHeader><TableRow>
-              <TableHeaderCell>Bus No.</TableHeaderCell>
-              <TableHeaderCell>Driver</TableHeaderCell>
-              <TableHeaderCell>Phone</TableHeaderCell>
-              <TableHeaderCell>Route</TableHeaderCell>
-              <TableHeaderCell>Capacity</TableHeaderCell>
-              <TableHeaderCell>Actions</TableHeaderCell>
-            </TableRow></TableHeader>
-            <TableBody>
-              {buses.map(b => (
-                <TableRow key={b.id}>
-                  <TableCell><b>{b.bus_number}</b></TableCell>
-                  <TableCell>{b.driver_name || '—'}</TableCell>
-                  <TableCell>{b.driver_phone || '—'}</TableCell>
-                  <TableCell>{b.route_name || '—'}</TableCell>
-                  <TableCell>{b.capacity}</TableCell>
-                  <TableCell>
-                    <Button size="small" appearance="subtle" icon={<DeleteRegular />}
-                      onClick={() => remove(b.id)} />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {buses.length === 0 && <TableRow><TableCell colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>No buses yet</TableCell></TableRow>}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+      )}
     </Layout>
   )
 }
