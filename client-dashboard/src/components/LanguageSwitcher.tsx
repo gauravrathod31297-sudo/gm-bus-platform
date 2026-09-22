@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  Button, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem,
-  MenuItemRadio, makeStyles, tokens,
+  Menu, MenuTrigger, MenuPopover, MenuList, MenuItem,
+  makeStyles, tokens,
 } from '@fluentui/react-components'
 import { GlobeRegular, CheckmarkRegular } from '@fluentui/react-icons'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -23,32 +23,35 @@ const useStyles = makeStyles({
     ':hover': { background: tokens.colorNeutralBackground2 },
   },
   flag: { fontSize: '16px' },
-  menuItem: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px' },
+  menuItemContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    minWidth: '180px',
+    justifyContent: 'space-between',
+  },
+  leftSide: { display: 'flex', alignItems: 'center', gap: '10px' },
 })
 
 const LANGS = [
-  { code: 'en', flag: '🇬🇧', name: 'English', native: 'English' },
-  { code: 'mr', flag: '🇮🇳', name: 'Marathi', native: 'मराठी' },
-  { code: 'gu', flag: '🇮🇳', name: 'Gujarati', native: 'ગુજરાતી' },
-  { code: 'hi', flag: '🇮🇳', name: 'Hindi', native: 'हिंदी' },
+  { code: 'en', flag: '🇬🇧', native: 'English' },
+  { code: 'mr', flag: '🇮🇳', native: 'मराठी' },
+  { code: 'gu', flag: '🇮🇳', native: 'ગુજરાતી' },
+  { code: 'hi', flag: '🇮🇳', native: 'हिंदी' },
 ]
 
 export default function LanguageSwitcher() {
   const styles = useStyles()
   const { lang, setLang } = useLanguage()
-  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const current = LANGS.find(l => l.code === lang) || LANGS[0]
 
   const changeLang = async (code: string) => {
     setSaving(true)
-    setLang(code as any) // Instant UI change
-    setOpen(false)
+    setLang(code as any)
     try {
-      // Save to backend
       await api.put('/api/auth/language', { language: code })
-      // Update user in localStorage
       const userStr = localStorage.getItem('client_user')
       if (userStr) {
         const user = JSON.parse(userStr)
@@ -63,7 +66,7 @@ export default function LanguageSwitcher() {
   }
 
   return (
-    <Menu open={open} onOpenChange={(_, d) => setOpen(d.open)}>
+    <Menu>
       <MenuTrigger disableButtonEnhancement>
         <button className={styles.btn} disabled={saving}>
           <GlobeRegular />
@@ -74,19 +77,20 @@ export default function LanguageSwitcher() {
       <MenuPopover>
         <MenuList>
           {LANGS.map(l => (
-            <MenuItemRadio
+            <MenuItem
               key={l.code}
-              name="language"
-              value={l.code}
-              checked={lang === l.code}
               onClick={() => changeLang(l.code)}
             >
-              <span className={styles.menuItem}>
-                <span style={{ fontSize: '18px' }}>{l.flag}</span>
-                <span style={{ fontWeight: lang === l.code ? 700 : 400 }}>{l.native}</span>
-                {lang === l.code && <CheckmarkRegular style={{ marginLeft: 'auto', color: '#16a34a' }} />}
-              </span>
-            </MenuItemRadio>
+              <div className={styles.menuItemContent}>
+                <span className={styles.leftSide}>
+                  <span style={{ fontSize: '18px' }}>{l.flag}</span>
+                  <span style={{ fontWeight: lang === l.code ? 700 : 400 }}>{l.native}</span>
+                </span>
+                {lang === l.code && (
+                  <CheckmarkRegular style={{ color: '#16a34a', fontSize: '16px' }} />
+                )}
+              </div>
+            </MenuItem>
           ))}
         </MenuList>
       </MenuPopover>
