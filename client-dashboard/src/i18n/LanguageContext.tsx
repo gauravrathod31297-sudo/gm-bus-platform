@@ -23,7 +23,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     if (userStr) {
       try {
         const user = JSON.parse(userStr)
-        if (user.preferred_language && translations[user.preferred_language]) {
+        if (user.preferred_language && (translations as any)[user.preferred_language]) {
           setLangState(user.preferred_language)
           localStorage.setItem('ui_language', user.preferred_language)
           return

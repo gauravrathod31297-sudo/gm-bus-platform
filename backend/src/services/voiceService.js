@@ -1,6 +1,7 @@
-const gTTS = require('gtts');
+const googleTTS = require('google-tts-api');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 
 const AUDIO_DIR = path.join(__dirname, '../../public/audio');
 if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
@@ -12,48 +13,67 @@ const TEMPLATES = {
   en: (stop) => `Next stop ${stop}. Please be ready.`,
 };
 
+async function downloadAudio(text, lang, fileName) {
+  const filePath = path.join(AUDIO_DIR, fileName);
+  try {
+    // google-tts-api returns array for long text
+    const results = await googleTTS.getAllAudioUrls(text, {
+      lang: lang,
+      slow: false,
+      host: 'https://translate.google.com',
+      splitPunct: ',.?!',
+    });
+
+    // Download each piece and concatenate
+    const buffers = [];
+    for (const r of results) {
+      const res = await axios.get(r.url, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      buffers.push(Buffer.from(res.data));
+    }
+
+    fs.writeFileSync(filePath, Buffer.concat(buffers));
+    return true;
+  } catch (err) {
+    console.error(`TTS ${lang} error:`, err.message);
+    return false;
+  }
+}
+
 // PRIMARY + ENGLISH only
 async function generateTwoLanguages(stopNames, primaryLang) {
   const results = {};
   const langMap = {
     'mr': 'stop_name_mr',
     'gu': 'stop_name_gu',
-    'hi': 'stop_name_gu', // Hindi uses gu column temporarily
+    'hi': 'stop_name_gu',
     'en': 'stop_name',
   };
 
-  // Primary language
   const primary = primaryLang === 'en' ? 'en' : primaryLang;
   const primaryKey = langMap[primary] || 'stop_name';
   const primaryName = stopNames[primaryKey] || stopNames.stop_name || '';
 
   if (primary !== 'en' && primaryName) {
-    try {
-      const text = TEMPLATES[primary](primaryName);
-      const fileName = `ann_${Date.now()}_${primary}_${Math.random().toString(36).substr(2, 5)}.mp3`;
-      const filePath = path.join(AUDIO_DIR, fileName);
-
-      await new Promise((resolve, reject) => {
-        const gtts = new gTTS(text, primary);
-        gtts.save(filePath, (err) => err ? reject(err) : resolve());
-      });
+    const text = TEMPLATES[primary](primaryName);
+    const fileName = `ann_${Date.now()}_${primary}_${Math.random().toString(36).substr(2, 5)}.mp3`;
+    const ok = await downloadAudio(text, primary, fileName);
+    if (ok) {
       results[primary] = { url: `/audio/${fileName}`, text, language: primary, stopName: primaryName };
-    } catch (err) { console.error(`TTS ${primary}:`, err.message); }
+    }
   }
 
-  // English (always secondary)
+  // English always
   if (stopNames.stop_name) {
-    try {
-      const text = TEMPLATES.en(stopNames.stop_name);
-      const fileName = `ann_${Date.now()}_en_${Math.random().toString(36).substr(2, 5)}.mp3`;
-      const filePath = path.join(AUDIO_DIR, fileName);
-
-      await new Promise((resolve, reject) => {
-        const gtts = new gTTS(text, 'en');
-        gtts.save(filePath, (err) => err ? reject(err) : resolve());
-      });
+    const text = TEMPLATES.en(stopNames.stop_name);
+    const fileName = `ann_${Date.now()}_en_${Math.random().toString(36).substr(2, 5)}.mp3`;
+    const ok = await downloadAudio(text, 'en', fileName);
+    if (ok) {
       results.en = { url: `/audio/${fileName}`, text, language: 'en', stopName: stopNames.stop_name };
-    } catch (err) { console.error('TTS en:', err.message); }
+    }
   }
 
   console.log(`🔊 Announcements generated for: ${Object.keys(results).join(', ')}`);

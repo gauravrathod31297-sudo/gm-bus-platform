@@ -85,7 +85,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
       const res = await api.get(`/api/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`)
       if (res.data.success) {
         setSearchResults(res.data.results)
-        if (res.data.results.length === 0) setMsg({ type: 'error', text: t('noData') })
+        if (res.data.results.length === 0) setMsg({ type: 'error', text: 'No results found' })
       }
     } catch (e) { setMsg({ type: 'error', text: 'Search failed' }) }
     finally { setSearching(false) }
