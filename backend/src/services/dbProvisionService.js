@@ -117,13 +117,14 @@ async function provisionClientDatabase({
       api_key TEXT,
       updated_at TIMESTAMP DEFAULT NOW()
     );
+
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gmuser;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gmuser;
   `);
   console.log(`✅ Tables created in ${dbName}`);
 
-  // 4. Default settings
   await clientDb.query(`INSERT INTO client_settings DEFAULT VALUES`);
 
-  // 5. Create admin user
   const passwordHash = await bcrypt.hash(tempPassword, 12);
   await clientDb.query(
     `INSERT INTO users (name, email, password_hash, role) 
@@ -134,7 +135,6 @@ async function provisionClientDatabase({
 
   await clientDb.end();
 
-  // 6. Update master DB
   const masterDb = require('../config/database');
   await masterDb.query(
     `UPDATE clients 
@@ -143,23 +143,57 @@ async function provisionClientDatabase({
     [dbName, clientId]
   );
 
-  // 7. Send welcome email
+  // ===== Welcome email (ENGLISH) =====
   await sendMail({
     to: email,
-    subject: '🎉 Your GM Bus Tracking Account is Ready!',
+    subject: 'Your GM Bus Tracking Account is Ready!',
     html: `
-      <div style="font-family:Arial;max-width:600px;margin:auto;padding:20px;border:1px solid #eee;border-radius:8px;">
-        <h2 style="color:#2563eb;">नमस्कार ${ownerName},</h2>
-        <p>तुमचं <b>GM Bus Tracking</b> account approve झालं आहे! 🎉</p>
-        <p><b>Company:</b> ${companyName}</p>
-        <p><b>Dashboard:</b> <a href="${process.env.CLIENT_URL}">${process.env.CLIENT_URL}</a></p>
-        <p><b>Email:</b> ${email}</p>
-        <p><b>Temporary Password:</b> 
-          <code style="background:#f3f4f6;padding:6px 12px;border-radius:4px;font-size:16px;">${tempPassword}</code>
-        </p>
-        <p>कृपया लॉगिन केल्यावर password बदला.</p>
-        <hr/>
-        <p style="color:#666;font-size:12px;">GM Bus Tracking — bustracker.gauravmedia.in</p>
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px;background:#f9fafb;border-radius:12px;">
+        <div style="text-align:center;padding-bottom:20px;border-bottom:3px solid #10b981;">
+          <h1 style="color:#10b981;margin:0;font-size:28px;">🎉 Welcome Aboard!</h1>
+        </div>
+        <div style="padding:30px 0;">
+          <h2 style="color:#111;font-size:22px;">Hello ${ownerName},</h2>
+          <p style="color:#374151;font-size:15px;line-height:1.6;">
+            Great news! Your <b>GM Bus Tracking</b> account has been <b style="color:#10b981;">approved</b>! 🎉
+          </p>
+          
+          <div style="background:#fff;padding:24px;border-radius:8px;border-left:4px solid #10b981;margin:24px 0;">
+            <p style="margin:0 0 16px;color:#6b7280;font-size:13px;font-weight:600;">YOUR LOGIN CREDENTIALS</p>
+            <p style="margin:0 0 8px;color:#111;font-size:15px;"><b>Company:</b> ${companyName}</p>
+            <p style="margin:0 0 8px;color:#111;font-size:15px;"><b>Dashboard URL:</b> <a href="${process.env.CLIENT_URL || 'http://localhost:5174'}" style="color:#2563eb;">${process.env.CLIENT_URL || 'http://localhost:5174'}</a></p>
+            <p style="margin:0 0 8px;color:#111;font-size:15px;"><b>Email:</b> ${email}</p>
+            <p style="margin:0;color:#111;font-size:15px;"><b>Temporary Password:</b> 
+              <code style="background:#fef3c7;padding:8px 16px;border-radius:6px;font-size:16px;font-weight:700;color:#92400e;letter-spacing:1px;">${tempPassword}</code>
+            </p>
+          </div>
+
+          <div style="background:#fef3c7;padding:16px;border-radius:8px;border-left:4px solid #f59e0b;margin:20px 0;">
+            <p style="margin:0;color:#92400e;font-size:14px;">
+              ⚠️ <b>Important:</b> Please change your password immediately after your first login.
+            </p>
+          </div>
+
+          <h3 style="color:#111;font-size:16px;margin-top:30px;">What's Next?</h3>
+          <ul style="color:#374151;font-size:14px;line-height:1.8;padding-left:20px;">
+            <li>Log in to your dashboard</li>
+            <li>Add your buses and drivers</li>
+            <li>Create routes with stops (English, Marathi, Gujarati)</li>
+            <li>Configure voice announcements</li>
+            <li>Start tracking live locations</li>
+          </ul>
+
+          <p style="color:#374151;font-size:15px;line-height:1.6;margin-top:24px;">
+            If you need any assistance, simply reply to this email. We're here to help!
+          </p>
+        </div>
+        <div style="padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;">
+          <p style="color:#9ca3af;font-size:12px;margin:0;">
+            Best regards,<br/>
+            <b style="color:#2563eb;">GM Bus Tracking Team</b><br/>
+            bustracker.gauravmedia.in
+          </p>
+        </div>
       </div>
     `,
   });
