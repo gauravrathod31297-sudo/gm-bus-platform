@@ -3,7 +3,7 @@ import Login from './pages/Login'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
-function RequireAuth({ children }: { children: JSX.Element }) {
+function RequireAuth({ children }: { children: any }) {
   const token = localStorage.getItem('admin_token')
   if (!token) return <Navigate to="/login" replace />
   return children
