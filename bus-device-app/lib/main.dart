@@ -4,6 +4,7 @@ import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/socket_service.dart';
 import 'services/gps_service.dart';
+import 'services/announcement_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,7 @@ void main() {
     ChangeNotifierProvider(create: (_) => AuthService()),
     ChangeNotifierProvider(create: (_) => SocketService()),
     ChangeNotifierProvider(create: (_) => GpsService()),
+    ChangeNotifierProvider(create: (_) => AnnouncementService()),
   ], child: const GMBusDeviceApp()));
 }
 
