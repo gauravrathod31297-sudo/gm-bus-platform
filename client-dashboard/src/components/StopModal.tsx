@@ -75,12 +75,14 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
 
   useEffect(() => { if (tab === 'map') setMapReady(true) }, [tab])
 
-  // ⭐ Rules:
+  // ⭐ Rules use CLIENT's preferred_language from DB (set by admin), NOT UI language
   // EN → EN only
   // HI → EN + HI
   // MR → EN + MR + HI
   // GU → EN + GU + HI
-  const primaryLang = (lang === 'en' ? 'en' : lang) as 'en' | 'mr' | 'gu' | 'hi'
+  const clientUser = JSON.parse(localStorage.getItem('client_user') || '{}')
+  const clientLang = (clientUser.preferred_language || 'en') as 'en' | 'mr' | 'gu' | 'hi'
+  const primaryLang = clientLang
   const showPrimaryField = primaryLang !== 'en'
   const showHindiField = primaryLang !== 'hi' && primaryLang !== 'en'
   const meta = LANG_META[primaryLang] || LANG_META.en
