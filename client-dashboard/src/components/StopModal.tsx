@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Button, Dialog, DialogTrigger, DialogSurface, DialogTitle, DialogBody,
   DialogActions, DialogContent, Field, Input, MessageBar, MessageBarBody,
-  makeStyles, tokens, Text, Tab, TabList, Spinner, Badge
+  makeStyles, tokens, Text, Tab, TabList, Spinner
 } from '@fluentui/react-components'
 import { AddRegular, LocationRegular, MapRegular, LinkRegular, SaveRegular, SearchRegular } from '@fluentui/react-icons'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
@@ -20,7 +20,7 @@ const useStyles = makeStyles({
   helpText: { fontSize: '12px', color: tokens.colorNeutralForeground3, marginTop: '4px' },
   preview: { background: tokens.colorNeutralBackground2, padding: '12px', borderRadius: '8px', marginTop: '12px' },
   searchResults: { maxHeight: '200px', overflowY: 'auto', border: `1px solid ${tokens.colorNeutralStroke1}`, borderRadius: '8px', marginTop: '12px' },
-  resultItem: { padding: '12px', cursor: 'pointer', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, transition: 'background 0.15s' },
+  resultItem: { padding: '12px', cursor: 'pointer', borderBottom: `1px solid ${tokens.colorNeutralStroke2}` },
   resultTitle: { fontWeight: '600', fontSize: '14px' },
   resultAddress: { fontSize: '12px', color: tokens.colorNeutralForeground3, marginTop: '2px' },
   langBadge: { background: '#e0f2fe', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', color: '#0369a1' },
@@ -42,11 +42,11 @@ function MapMover({ position }: any) {
   return null
 }
 
-const LANG_LABELS: Record<string, { name: string; flag: string }> = {
-  en: { name: 'English', flag: '🇬🇧' },
-  mr: { name: 'मराठी', flag: '🇮🇳' },
-  gu: { name: 'ગુજરાતી', flag: '🇮🇳' },
-  hi: { name: 'हिंदी', flag: '🇮🇳' },
+const LANG_META: Record<string, { name: string; flag: string; placeholder: string }> = {
+  mr: { name: 'मराठी', flag: '🇮🇳', placeholder: 'शिवाजी नगर' },
+  gu: { name: 'ગુજરાતી', flag: '🇮🇳', placeholder: 'શિવાજી નગર' },
+  hi: { name: 'हिंदी', flag: '🇮🇳', placeholder: 'शिवाजी नगर' },
+  en: { name: 'English', flag: '🇬🇧', placeholder: 'Shivaji Nagar' },
 }
 
 interface Props { routeId: string; stopNumber: number; onCreated: () => void }
@@ -57,8 +57,9 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'search' | 'gps' | 'map' | 'link' | 'manual'>('search')
   const [form, setForm] = useState({
-    stop_name: '',        // English
-    stop_name_local: '',  // Primary language (mr/gu/hi)
+    stop_name: '',        // English (always)
+    stop_name_primary: '', // Primary language (mr/gu/hi)
+    stop_name_hi: '',     // Hindi (only if primary is not hi/en)
     lat: '', lng: '',
     stop_order: stopNumber,
   })
@@ -74,9 +75,23 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
 
   useEffect(() => { if (tab === 'map') setMapReady(true) }, [tab])
 
-  const primaryLang = lang === 'en' ? 'en' : lang
-  const primaryLabel = LANG_LABELS[primaryLang] || LANG_LABELS.en
-  const showLocalField = primaryLang !== 'en'
+  // ⭐ Rules:
+  // EN → EN only
+  // HI → EN + HI
+  // MR → EN + MR + HI
+  // GU → EN + GU + HI
+  const primaryLang = (lang === 'en' ? 'en' : lang) as 'en' | 'mr' | 'gu' | 'hi'
+  const showPrimaryField = primaryLang !== 'en'
+  const showHindiField = primaryLang !== 'hi' && primaryLang !== 'en'
+  const meta = LANG_META[primaryLang] || LANG_META.en
+
+  const badgeText = (() => {
+    if (primaryLang === 'en') return '🇬🇧 English only'
+    if (primaryLang === 'hi') return '🇬🇧 English + 🇮🇳 हिंदी'
+    if (primaryLang === 'mr') return '🇬🇧 English + 🇮🇳 मराठी + 🇮🇳 हिंदी'
+    if (primaryLang === 'gu') return '🇬🇧 English + 🇮🇳 ગુજરાતી + 🇮🇳 हिंदी'
+    return ''
+  })()
 
   const searchPlaces = async () => {
     if (!searchQuery.trim()) return
@@ -87,7 +102,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
         setSearchResults(res.data.results)
         if (res.data.results.length === 0) setMsg({ type: 'error', text: t('noData') })
       }
-    } catch (e) { setMsg({ type: 'error', text: t('noData') }) }
+    } catch { setMsg({ type: 'error', text: t('noData') }) }
     finally { setSearching(false) }
   }
 
@@ -126,7 +141,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
         setMsg({ type: 'success', text: '✅ Link parsed' })
         setTab('map')
       }
-    } catch (e: any) { setMsg({ type: 'error', text: 'Invalid link' }) }
+    } catch { setMsg({ type: 'error', text: 'Invalid link' }) }
   }
 
   const save = async () => {
@@ -134,18 +149,33 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
     if (!form.lat || !form.lng) { setMsg({ type: 'error', text: 'Location select करा' }); return }
     setLoading(true); setMsg(null)
     try {
-      // Build payload — only 2 languages used
+      const englishName = form.stop_name.trim()
       const payload: any = {
-        stop_name: form.stop_name.trim(),
+        stop_name: englishName,
         lat: parseFloat(form.lat),
         lng: parseFloat(form.lng),
         stop_order: form.stop_order,
       }
-      const localName = form.stop_name_local.trim() || form.stop_name.trim()
-      if (primaryLang === 'mr') { payload.stop_name_mr = localName; payload.stop_name_gu = form.stop_name.trim() }
-      else if (primaryLang === 'gu') { payload.stop_name_gu = localName; payload.stop_name_mr = form.stop_name.trim() }
-      else if (primaryLang === 'hi') { payload.stop_name_mr = localName; payload.stop_name_gu = form.stop_name.trim() } // hi uses mr column temporarily
-      else { payload.stop_name_mr = form.stop_name.trim(); payload.stop_name_gu = form.stop_name.trim() }
+
+      // Fill per rule
+      if (primaryLang === 'mr') {
+        payload.stop_name_mr = form.stop_name_primary.trim() || englishName
+        payload.stop_name_hi = form.stop_name_hi.trim() || englishName
+        payload.stop_name_gu = englishName
+      } else if (primaryLang === 'gu') {
+        payload.stop_name_gu = form.stop_name_primary.trim() || englishName
+        payload.stop_name_hi = form.stop_name_hi.trim() || englishName
+        payload.stop_name_mr = englishName
+      } else if (primaryLang === 'hi') {
+        payload.stop_name_hi = form.stop_name_primary.trim() || englishName
+        payload.stop_name_mr = englishName
+        payload.stop_name_gu = englishName
+      } else {
+        // English only
+        payload.stop_name_mr = englishName
+        payload.stop_name_gu = englishName
+        payload.stop_name_hi = englishName
+      }
 
       await api.post(`/api/route/${routeId}/stops`, payload)
       setMsg({ type: 'success', text: '✅ ' + t('save') })
@@ -155,7 +185,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
   }
 
   const resetForm = () => {
-    setForm({ stop_name: '', stop_name_local: '', lat: '', lng: '', stop_order: stopNumber })
+    setForm({ stop_name: '', stop_name_primary: '', stop_name_hi: '', lat: '', lng: '', stop_order: stopNumber })
     setPosition(null); setLink(''); setSearchQuery(''); setSearchResults([]); setMsg(null); setTab('search')
   }
 
@@ -176,13 +206,11 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
 
             <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Text weight="semibold">{t('stopNamesTitle')}</Text>
-              <span className={styles.langBadge}>
-                {primaryLang === "en" ? `🇬🇧 ${t("englishOnly")}` : `${primaryLabel.flag} ${primaryLabel.name} + 🇬🇧 English`}
-              </span>
+              <span className={styles.langBadge}>{badgeText}</span>
             </div>
 
-            {/* English field — always */}
-            <Field label={t('stopNameEn') + ' *'} className={styles.field}>
+            {/* English — always */}
+            <Field label="Stop Name (English) *" className={styles.field}>
               <Input
                 value={form.stop_name}
                 onChange={(_, d) => setForm({ ...form, stop_name: d.value })}
@@ -190,16 +218,24 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
               />
             </Field>
 
-            {/* Local language field — only if not English */}
-            {showLocalField && (
-              <Field label={t('stopNameLocal')} className={styles.field}>
+            {/* Primary language field (only if not English) */}
+            {showPrimaryField && (
+              <Field label={`Stop Name (${meta.name}) *`} className={styles.field}>
                 <Input
-                  value={form.stop_name_local}
-                  onChange={(_, d) => setForm({ ...form, stop_name_local: d.value })}
-                  placeholder={
-                    primaryLang === 'mr' ? 'शिवाजी नगर' :
-                    primaryLang === 'gu' ? 'શિવાજી નગર' : 'शिवाजी नगर'
-                  }
+                  value={form.stop_name_primary}
+                  onChange={(_, d) => setForm({ ...form, stop_name_primary: d.value })}
+                  placeholder={meta.placeholder}
+                />
+              </Field>
+            )}
+
+            {/* Hindi field — only if primary is MR or GU */}
+            {showHindiField && (
+              <Field label="Stop Name (हिंदी) *" className={styles.field}>
+                <Input
+                  value={form.stop_name_hi}
+                  onChange={(_, d) => setForm({ ...form, stop_name_hi: d.value })}
+                  placeholder="शिवाजी नगर"
                 />
               </Field>
             )}
@@ -234,9 +270,7 @@ export default function StopModal({ routeId, stopNumber, onCreated }: Props) {
                   {searchResults.length > 0 && (
                     <div className={styles.searchResults}>
                       {searchResults.map((r, i) => (
-                        <div key={i} className={styles.resultItem} onClick={() => selectResult(r)}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                        <div key={i} className={styles.resultItem} onClick={() => selectResult(r)}>
                           <div className={styles.resultTitle}>📍 {r.name}</div>
                           <div className={styles.resultAddress}>{r.display_name}</div>
                         </div>
