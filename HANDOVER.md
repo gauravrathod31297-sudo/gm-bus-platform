@@ -124,3 +124,145 @@ Send: /data/movies/Project/GM BUS STABLE/HANDOVER.md वाच. Context loaded �
 Admin UI: http://192.168.30.125:8091
 Client UI: http://192.168.30.125:8081
 Backend: http://192.168.30.125:5000
+
+
+---
+
+## SPRINT 4 — PLANNED (A + B + C + D एकत्र)
+
+### Priority A — Flutter APK Production
+**Goal:** bus-device-app real device वर चालवणं + APK distribute
+
+Steps (local machine वर, server वर Flutter नाही):
+1. cd bus-device-app && flutter pub get
+2. Real Android device किंवा emulator connect (USB debugging)
+3. flutter run — live debug (_Bootstrap मधून pair screen दिसेल)
+4. Admin dashboard → Deployment → bus select → QR show → QR URL copy
+5. Flutter app मध्ये paste: gm-bus://pair?client_id=13&bus_id=1&bus_number=MH12AB1234&token=XXXX
+   → Pair होईल → Dashboard → "सुरू करा" → GPS stream चालू
+6. Verify: client-dashboard LiveMap वर bus marker हलतोय का
+7. Release APK: flutter build apk --release --split-per-abi
+8. Upload: backend/public/apk/gm-bus-device.apk (gitignored)
+9. Deployment.tsx मध्ये APK download link update
+
+**Blockers:** Flutter SDK + Android SDK + real device/emulator (server वर नाही)
+**Files:** bus-device-app/* (कोड ready, फक्त test/build बाकी)
+
+---
+
+### Priority B — Live Map improvements
+**Files:** backend/src/services/socketService.js, backend/src/routes/tracking.js, client-dashboard/src/pages/LiveMap.tsx
+
+#### B1. Polyline trail (शेवटचे 100 points)
+Tenant DB मध्ये नवीन table:
+  CREATE TABLE location_history (
+    id SERIAL PRIMARY KEY,
+    bus_id INTEGER REFERENCES buses(id) ON DELETE CASCADE,
+    lat NUMERIC(10,7), lng NUMERIC(10,7),
+    speed NUMERIC(5,2) DEFAULT 0,
+    heading NUMERIC(5,2) DEFAULT 0,
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX idx_loc_hist_bus_time ON location_history(bus_id, recorded_at DESC);
+
+- socketService: driver:location handler मध्ये live_locations सोबत location_history INSERT
+- नवीन endpoint: GET /api/tracking/history/:busId?minutes=30 → last 100 points
+- LiveMap.tsx: selected bus साठी trail polyline (हिरवा) + toggle
+
+#### B2. Stale timeout (offline detect)
+- socketService: setInterval (30 sec) सर्व driver sockets तपासा
+- जर last_location_at 45 sec पेक्षा जुना → io.to(client_X).emit('bus:offline', { bus_id, last_update })
+- LiveMap.tsx: bus:offline ऐकतो → marker grey + "Offline" badge
+- Driver socket वर server-side last_location_at store
+
+#### B3. Reconnect buffer (driver app)
+- socket_service.dart: disconnect वेळी Queue<Map> मध्ये pings store (max 200)
+- connect झाल्यावर queue flush → driver:location emit
+- Optional: server-side dedupe समान ts
+
+#### B4. Admin dashboard Live Map
+- नवीन page: admin-dashboard/src/pages/AdminLiveMap.tsx
+- सगळ्या clients ची buses एका map वर
+- Backend: GET /api/admin/live-buses — सर्व approved clients वरून live_locations aggregate
+- Socket: admin room मध्ये join (viewer:join सारखं admin:join)
+- socketService: driver:location वर admin room ला पण broadcast
+
+#### B5. Client dashboard polish
+- Trail साठी वेगळा रंग
+- Selected bus speed history sparkline (बोनस)
+
+---
+
+### Priority C — TTS / Voice fixes
+**Files:** backend/src/services/ttsService.js, voiceService.js, backend/src/routes/tts.js, bus-device-app/lib/services/announcement_service.dart
+
+#### C1. 4 language consistency
+- EN + HI + MR + GU, primary = clients.preferred_language (default 'en')
+- /api/tracking/announcement आधीच 4 langs generate करतो — verify + fallback
+- clients.preferred_language सगळ्या approved clients साठी set आहे का तपासा
+
+#### C2. Voice settings per client
+- client_settings table structure तपासा
+- Expected: voice_speed, voice_volume, announcement_seconds, stop_radius_meters
+- client-dashboard settings page + admin ClientDetail sync
+
+#### C3. Manual announce button (driver app)
+- dashboard_screen.dart मध्ये आहे — 3 langs delay 3 sec
+- Real device वर audio quality + latency test
+
+#### C4. Announcement dedup
+- एकाच stop साठी 2 वेळा announce होऊ नये
+- announcement_service.dart: lastAnnouncedStopId + cooldown 60 sec
+
+---
+
+### Priority D — Admin dashboard cleanup
+**Files:** admin-dashboard/src/pages/*, admin-dashboard/src/components/*
+
+#### D1. AdminLiveMap page (B4 नंतर)
+- Layout मध्ये route + sidebar link
+
+#### D2. Notifications page real data
+- GET /api/admin/activity आधीच आहे
+- Reuse: signup_requests + new clients + failed logins
+
+#### D3. Command palette (Ctrl+K)
+- cmdk library किंवा manual (Fluent Dialog + input + keyboard nav)
+- Commands: navigate pages, quick actions (add client, show QR, restart services)
+- admin-dashboard/src/components/CommandPalette.tsx
+
+#### D4. Audit log
+Master DB मध्ये नवीन table:
+  CREATE TABLE audit_log (
+    id SERIAL PRIMARY KEY,
+    admin_id INTEGER, action TEXT, target_type TEXT, target_id INTEGER,
+    metadata JSONB, ip TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+- admin.js मध्ये helper: logAudit(req, action, target_type, target_id, metadata)
+- Cover: client approve/reject, delete client, reset password, buses CRUD
+- Admin UI: नवीन page Audit.tsx + filters
+
+---
+
+## SPRINT 4 ORDER (सुचवलेला)
+1. **B1 + B2** — Live Map trail + offline (server + client-dashboard) — सगळ्यात valuable
+2. **A** — Flutter APK real device test (parallel — तुम्ही local वर)
+3. **B4 + D1** — Admin LiveMap
+4. **C** — TTS polish + dedup
+5. **D2 + D3 + D4** — Notifications, palette, audit
+
+## SPRINT 4 START COMMAND (नवीन chat साठी)
+cd "/data/movies/Project/GM BUS STABLE"
+cat HANDOVER.md
+# नंतर सांगा: "Sprint 4 B1 सुरू कर"
+
+## SPRINT 3 ARCHIVE
+- Commit 4175c58 — pairing + socket auth + Flutter QR flow
+- Commit 77b19f7 — HANDOVER update
+- files: backend/src/routes/pair.js, backend/src/services/socketService.js rewrite,
+  admin-dashboard/src/pages/Deployment.tsx (QR client_id),
+  bus-device-app/lib/{main.dart, screens/login_screen.dart, screens/dashboard_screen.dart,
+  services/auth_service.dart, services/socket_service.dart}, pubspec.yaml (device_info_plus)
+- Admin UI http://192.168.30.125:8091 — HTTP 200
+- Backend http://192.168.30.125:5000 — HTTP 200
