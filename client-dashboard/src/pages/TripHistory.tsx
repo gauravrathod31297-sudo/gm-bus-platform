@@ -36,7 +36,7 @@ export default function TripHistory() {
 
   const downloadCSV = () => {
     const token = localStorage.getItem('client_token')
-    window.open(`http://localhost:5000/api/trips/export/csv?token=${token}`, '_blank')
+    window.open(`/api/trips/export/csv?token=${token}`, '_blank')
   }
 
   return (

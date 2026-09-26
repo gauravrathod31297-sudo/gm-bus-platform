@@ -1,120 +1,194 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Dialog, DialogTrigger, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, Field, Input, MessageBar, MessageBarBody, Spinner, makeStyles, tokens, Text, Select } from '@fluentui/react-components'
-import { AddRegular, DeleteRegular, EditRegular, SaveRegular, SearchRegular } from '@fluentui/react-icons'
+import { Card, Text, Button, Spinner, Field, Input, Dropdown, Option, MessageBar, MessageBarBody, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, Dialog, DialogSurface, DialogTitle, DialogBody, DialogContent, DialogActions, makeStyles, tokens } from '@fluentui/react-components'
+import { AddRegular, EditRegular, DeleteRegular, ArrowClockwiseRegular } from '@fluentui/react-icons'
 import api from '../services/api'
 import Layout from '../components/Layout'
-import { useLanguage } from '../i18n/LanguageContext'
-import { showToast } from '../utils/toast'
 
 const useStyles = makeStyles({
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '12px' },
-  search: { flex: 1, maxWidth: '400px' },
-  table: { background: 'white', borderRadius: '8px', overflow: 'hidden' },
-  row: { display: 'grid', gridTemplateColumns: '60px 1.5fr 2fr 1.5fr 1.5fr 1fr 1.2fr', padding: '14px 16px', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, alignItems: 'center', fontSize: '13px', gap: '8px' },
-  hrow: { background: '#f9fafb', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' as const, color: tokens.colorNeutralForeground3 },
-  field: { marginBottom: '14px' },
-  actions: { display: 'flex', gap: '6px' },
+  wrap: { maxWidth: '1400px' },
+  header: { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' },
+  card: { padding:'8px 0', borderRadius:'14px', border: '1px solid ' + tokens.colorNeutralStroke2 },
+  loader: { display:'flex', justifyContent:'center', padding:'60px' },
+  empty: { textAlign:'center', padding:'60px', color:tokens.colorNeutralForeground3 },
+  grid2: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' },
 })
+
+const EMPTY_FORM = {
+  bus_number:'', driver_name:'', driver_phone:'', route_id:'', capacity:40, status:'active'
+}
 
 export default function Buses() {
   const s = useStyles()
-  const { t } = useLanguage()
-  const [buses, setBuses] = useState<any[]>([])
-  const [routes, setRoutes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ bus_number: '', driver_name: '', driver_phone: '', route_id: '', capacity: 40 })
-  const [search, setSearch] = useState('')
+  const [items, setItems] = useState<any[]>([])
+  const [routes, setRoutes] = useState<any[]>([])
   const [msg, setMsg] = useState<any>(null)
-  const [saving, setSaving] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [editId, setEditId] = useState<number|null>(null)
+  const [form, setForm] = useState<any>(EMPTY_FORM)
 
-  const load = () => {
+  const load = async () => {
     setLoading(true)
-    Promise.all([
-      api.get('/api/bus').then(r => setBuses(r.data)).catch(() => {}),
-      api.get('/api/route').then(r => setRoutes(r.data)).catch(() => {}),
-    ]).finally(() => setLoading(false))
+    try {
+      const [b, r] = await Promise.all([
+        api.get('/api/bus').catch(() => ({ data: [] })),
+        api.get('/api/route').catch(() => ({ data: [] })),
+      ])
+      setItems(Array.isArray(b.data) ? b.data : [])
+      setRoutes(Array.isArray(r.data) ? r.data : [])
+    } catch(e:any) {
+      setItems([])
+      setMsg({type:'warning', text:'API शी connection नाही — ' + e.message})
+    } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
-  const openAdd = () => { setEditing(null); setForm({ bus_number: '', driver_name: '', driver_phone: '', route_id: '', capacity: 40 }); setOpen(true) }
-  const openEdit = (b: any) => { setEditing(b); setForm({ bus_number: b.bus_number, driver_name: b.driver_name || '', driver_phone: b.driver_phone || '', route_id: b.route_id || '', capacity: b.capacity || 40 }); setOpen(true) }
+  const routeName = (id:any) => {
+    if (!id) return '-'
+    const r = routes.find((x:any) => x.id === id)
+    return r ? (r.route_name || r.name || ('#' + id)) : ('#' + id)
+  }
 
   const save = async () => {
-    if (!form.bus_number) { setMsg({ type: 'error', text: 'Bus number required' }); return }
-    setSaving(true); setMsg(null)
+    if (!form.bus_number) { setMsg({type:'error', text:'Bus number आवश्यक आहे'}); return }
     try {
-      const payload = { ...form, route_id: form.route_id || null, capacity: parseInt(String(form.capacity)) || 40 }
-      if (editing) { await api.put(`/api/bus/${editing.id}`, payload); showToast(t('success'), t('saved'), 'success') }
-      else { await api.post('/api/bus', payload); showToast(t('success'), t('saved'), 'success') }
-      setOpen(false); load()
-    } catch (e: any) { setMsg({ type: 'error', text: e.response?.data?.error || 'Failed' }) }
-    finally { setSaving(false) }
+      const payload = {
+        bus_number: form.bus_number,
+        driver_name: form.driver_name || null,
+        driver_phone: form.driver_phone || null,
+        route_id: form.route_id ? Number(form.route_id) : null,
+        capacity: form.capacity ? Number(form.capacity) : 40,
+        status: form.status || 'active',
+      }
+      if (editId) await api.put('/api/bus/' + editId, payload)
+      else await api.post('/api/bus', payload)
+      setMsg({type:'success', text:'✅ Saved'})
+      setOpen(false); setEditId(null); setForm(EMPTY_FORM)
+      load()
+    } catch(e:any) { setMsg({type:'error', text:e.response?.data?.error || e.message}) }
   }
 
-  const del = async (id: number, num: string) => {
-    if (!confirm(`${t('deleteConfirm')} ${num}`)) return
-    try { await api.delete(`/api/bus/${id}`); showToast(t('success'), t('deleted'), 'success'); load() }
-    catch { showToast(t('error'), 'Delete failed', 'error') }
+  const del = async (id:number) => {
+    if (!confirm('Delete bus ' + id + '?')) return
+    try { await api.delete('/api/bus/' + id); setMsg({type:'success', text:'✅ Deleted'}); load() }
+    catch(e:any) { setMsg({type:'error', text:e.message}) }
   }
-
-  const filtered = buses.filter(b => {
-    const q = search.toLowerCase()
-    return !q || (b.bus_number || '').toLowerCase().includes(q) || (b.driver_name || '').toLowerCase().includes(q)
-  })
 
   return (
-    <Layout title={t('buses')}>
+    <Layout title="Bus Fleet Management">
+    <div className={s.wrap}>
       <div className={s.header}>
-        <Input className={s.search} placeholder={t('searchAll')} value={search} onChange={(_, d) => setSearch(d.value)} contentBefore={<SearchRegular />} />
-        <Button appearance="primary" icon={<AddRegular />} onClick={openAdd}>{t('addBus')}</Button>
+        <div>
+          <Text size={700} weight="bold" style={{ display:'block' }}>🚌 Bus Fleet Management</Text>
+          <Text size={300} style={{ color:tokens.colorNeutralForeground3 }}>{items.length} buses</Text>
+        </div>
+        <div style={{ display:'flex', gap:'8px' }}>
+          <Button appearance="subtle" icon={<ArrowClockwiseRegular />} onClick={load} />
+          <Button appearance="primary" icon={<AddRegular />} onClick={() => { setForm(EMPTY_FORM); setEditId(null); setOpen(true) }}>Add Bus</Button>
+        </div>
       </div>
 
-      <Dialog open={open} onOpenChange={(_, d) => setOpen(d.open)}>
-        <DialogSurface style={{ maxWidth: '500px' }}>
+      {msg && <MessageBar intent={msg.type} style={{ marginBottom:'16px' }}><MessageBarBody>{msg.text}</MessageBarBody></MessageBar>}
+
+      <Card className={s.card}>
+        {loading ? <div className={s.loader}><Spinner /></div> :
+          items.length === 0 ? <div className={s.empty}><Text>No buses yet — "Add Bus" वर क्लिक करा</Text></div> :
+          <Table size="small">
+            <TableHeader><TableRow>
+              <TableHeaderCell style={{width:'60px'}}>ID</TableHeaderCell>
+              <TableHeaderCell>Bus No.</TableHeaderCell>
+              <TableHeaderCell>Driver</TableHeaderCell>
+              <TableHeaderCell>Phone</TableHeaderCell>
+              <TableHeaderCell>Route</TableHeaderCell>
+              <TableHeaderCell>Capacity</TableHeaderCell>
+              <TableHeaderCell>Status</TableHeaderCell>
+              <TableHeaderCell style={{width:'120px'}}>Actions</TableHeaderCell>
+            </TableRow></TableHeader>
+            <TableBody>
+              {items.map((it:any, i:number) => (
+                <TableRow key={it.id || i}>
+                  <TableCell>#{it.id || i+1}</TableCell>
+                  <TableCell><Text weight="semibold">{it.bus_number || '-'}</Text></TableCell>
+                  <TableCell>{it.driver_name || '-'}</TableCell>
+                  <TableCell>{it.driver_phone || '-'}</TableCell>
+                  <TableCell>{routeName(it.route_id)}</TableCell>
+                  <TableCell>{it.capacity || '-'}</TableCell>
+                  <TableCell>
+                    <span style={{
+                      padding:'2px 8px', borderRadius:'10px', fontSize:'12px',
+                      background: it.status === 'active' ? '#dcfce7' : '#fee2e2',
+                      color: it.status === 'active' ? '#166534' : '#991b1b'
+                    }}>{it.status || 'active'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div style={{ display:'flex', gap:'6px' }}>
+                      <Button size="small" appearance="subtle" icon={<EditRegular />} onClick={() => {
+                        setForm({
+                          bus_number: it.bus_number || '',
+                          driver_name: it.driver_name || '',
+                          driver_phone: it.driver_phone || '',
+                          route_id: it.route_id || '',
+                          capacity: it.capacity || 40,
+                          status: it.status || 'active',
+                        }); setEditId(it.id); setOpen(true)
+                      }} />
+                      <Button size="small" appearance="subtle" icon={<DeleteRegular />} onClick={() => del(it.id)} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        }
+      </Card>
+
+      <Dialog open={open} onOpenChange={(_, d) => { if(!d.open) { setOpen(false); setEditId(null) } }}>
+        <DialogSurface>
           <DialogBody>
-            <DialogTitle>{editing ? '✏️ ' + t('edit') : '🚌 ' + t('addBus')}</DialogTitle>
+            <DialogTitle>{editId ? 'Edit Bus' : 'Add Bus'}</DialogTitle>
             <DialogContent>
-              {msg && <MessageBar intent={msg.type} style={{ marginBottom: '12px' }}><MessageBarBody>{msg.text}</MessageBarBody></MessageBar>}
-              <Field label={t('busNumber') + ' *'} className={s.field}><Input value={form.bus_number} onChange={(_, d) => setForm({ ...form, bus_number: d.value })} placeholder="MH12-1234" /></Field>
-              <Field label={t('driverName')} className={s.field}><Input value={form.driver_name} onChange={(_, d) => setForm({ ...form, driver_name: d.value })} /></Field>
-              <Field label={t('driverPhone')} className={s.field}><Input value={form.driver_phone} onChange={(_, d) => setForm({ ...form, driver_phone: d.value })} /></Field>
-              <Field label={t('route')} className={s.field}>
-                <Select value={String(form.route_id)} onChange={(_, d) => setForm({ ...form, route_id: d.value })}>
-                  <option value="">—</option>
-                  {routes.map((r: any) => <option key={r.id} value={r.id}>{r.route_name}</option>)}
-                </Select>
+              <Field label="Bus Number *">
+                <Input value={form.bus_number||''} onChange={(_,d)=>setForm({...form,bus_number:d.value})} placeholder="MH12AB1234" />
               </Field>
-              <Field label={t('capacity')} className={s.field}><Input type="number" value={String(form.capacity)} onChange={(_, d) => setForm({ ...form, capacity: parseInt(d.value) || 40 })} /></Field>
+              <div className={s.grid2} style={{marginTop:'12px'}}>
+                <Field label="Driver Name">
+                  <Input value={form.driver_name||''} onChange={(_,d)=>setForm({...form,driver_name:d.value})} placeholder="Full name" />
+                </Field>
+                <Field label="Driver Phone">
+                  <Input value={form.driver_phone||''} onChange={(_,d)=>setForm({...form,driver_phone:d.value})} placeholder="9876543210" />
+                </Field>
+              </div>
+              <div className={s.grid2} style={{marginTop:'12px'}}>
+                <Field label="Capacity">
+                  <Input type="number" value={String(form.capacity||40)} onChange={(_,d)=>setForm({...form,capacity:d.value})} />
+                </Field>
+                <Field label="Status">
+                  <Dropdown value={form.status || 'active'} selectedOptions={[form.status || 'active']} onOptionSelect={(_,d)=>setForm({...form,status:d.optionValue})}>
+                    <Option value="active">Active</Option>
+                    <Option value="inactive">Inactive</Option>
+                    <Option value="maintenance">Maintenance</Option>
+                  </Dropdown>
+                </Field>
+              </div>
+              <Field label="Route" style={{marginTop:'12px'}}>
+                <Dropdown
+                  value={form.route_id ? routeName(form.route_id) : '(no route)'}
+                  selectedOptions={form.route_id ? [String(form.route_id)] : []}
+                  onOptionSelect={(_,d)=>setForm({...form,route_id:d.optionValue})}
+                >
+                  <Option value="">(no route)</Option>
+                  {routes.map((r:any) => <Option key={r.id} value={String(r.id)}>{r.route_name || r.name || ('#' + r.id)}</Option>)}
+                </Dropdown>
+              </Field>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpen(false)}>{t('cancel')}</Button>
-              <Button appearance="primary" icon={<SaveRegular />} onClick={save} disabled={saving}>{saving ? '...' : t('save')}</Button>
+              <Button appearance="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button appearance="primary" onClick={save}>Save</Button>
             </DialogActions>
           </DialogBody>
         </DialogSurface>
       </Dialog>
-
-      {loading ? <Spinner /> : (
-        <div className={s.table}>
-          <div className={`${s.row} ${s.hrow}`}><div>ID</div><div>{t('busNumber')}</div><div>{t('driverName')}</div><div>{t('driverPhone')}</div><div>{t('route')}</div><div>{t('capacity')}</div><div>{t('actions')}</div></div>
-          {filtered.length === 0 ? <div style={{ padding: '32px', textAlign: 'center', color: tokens.colorNeutralForeground3 }}>No buses</div> : filtered.map(b => (
-            <div key={b.id} className={s.row}>
-              <div>#{b.id}</div>
-              <div><strong>{b.bus_number}</strong></div>
-              <div>{b.driver_name || '—'}</div>
-              <div>{b.driver_phone || '—'}</div>
-              <div>{routes.find(r => r.id === b.route_id)?.route_name || '—'}</div>
-              <div>{b.capacity}</div>
-              <div className={s.actions}>
-                <Button size="small" appearance="subtle" icon={<EditRegular />} onClick={() => openEdit(b)} />
-                <Button size="small" appearance="subtle" icon={<DeleteRegular />} onClick={() => del(b.id, b.bus_number)} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    </div>
     </Layout>
   )
 }

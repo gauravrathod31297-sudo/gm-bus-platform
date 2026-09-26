@@ -1,0 +1,109 @@
+const nodemailer = require('nodemailer');
+
+// ─── .env मधून password साठी 2 variants accept करा ───
+function getEnvPass() {
+  return process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.SMTP_PWD;
+}
+
+// ─── "Name <email>" parse करा किंवा plain email ───
+function parseFrom(str, fallbackEmail, fallbackName) {
+  if (!str) return { email: fallbackEmail, name: fallbackName };
+  // "Name <email@domain>" format
+  const m = str.match(/^(?:"?([^"<]*)"?)\s*<([^>]+)>$/);
+  if (m) return { name: m[1].trim() || fallbackName, email: m[2].trim() };
+  // plain email
+  if (str.includes('@')) return { email: str.trim(), name: fallbackName };
+  return { email: fallbackEmail, name: fallbackName };
+}
+
+function createTransport(cfg = {}) {
+  const host = cfg.host || process.env.SMTP_HOST;
+  const port = cfg.port || parseInt(process.env.SMTP_PORT || '587');
+  const user = cfg.user || process.env.SMTP_USER;
+  const pass = cfg.pass || getEnvPass();
+  const secure = cfg.secure !== undefined
+    ? cfg.secure
+    : (process.env.SMTP_SECURE === 'true' || port === 465);
+
+  if (!host || !user || !pass) {
+    throw new Error('SMTP config incomplete - host/user/pass आवश्यक. host=' +
+      (host || 'MISSING') + ' user=' + (user || 'MISSING') +
+      ' pass=' + (pass ? 'SET' : 'MISSING'));
+  }
+
+  return nodemailer.createTransport({
+    host, port, secure,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
+  });
+}
+
+async function sendEmail({ to, subject, html, text, cfg = {} }) {
+  const transporter = createTransport(cfg);
+  const defaultFrom = process.env.SMTP_FROM;
+  const defaultEmail = process.env.SMTP_USER;
+  const defaultName = process.env.SMTP_FROM_NAME || 'GM Bus Service';
+
+  const fromEmail = cfg.from_email || defaultEmail;
+  const fromName = cfg.from_name || defaultName;
+  const parsed = parseFrom(cfg.from || defaultFrom, fromEmail, fromName);
+  const from = '"' + parsed.name + '" <' + parsed.email + '>';
+
+  const info = await transporter.sendMail({
+    from,
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject,
+    html,
+    text: text || html.replace(/<[^>]*>/g, ''),
+  });
+  console.log('📧 Email sent to ' + to + ' — ' + info.messageId);
+  return info;
+}
+
+module.exports = { sendEmail, createTransport, getEnvPass, parseFrom };
+
+
+// ════════════════════════════════════════════════════════════
+// OTP Email — Marathi + English HTML (for login flow)
+// ════════════════════════════════════════════════════════════
+export async function sendOtpEmail(to, otp, purpose = 'login') {
+  const subject = 'GM Bus Tracking — तुमचा OTP / Your OTP';
+  const html = `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; background:#f3f6fb; padding:24px;">
+    <div style="max-width:560px; margin:auto; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.08);">
+      <div style="background:#0078d4; padding:20px 28px; color:#fff;">
+        <h2 style="margin:0; font-size:20px;">🚌 GM Bus Tracking</h2>
+        <p style="margin:4px 0 0; font-size:13px; opacity:.9;">Secure login verification</p>
+      </div>
+      <div style="padding:28px;">
+        <p style="font-size:15px; color:#222; margin:0 0 10px;">नमस्कार / Hello,</p>
+        <p style="font-size:15px; color:#333; margin:0 0 18px;">
+          तुमचा <b>One-Time Password (OTP)</b> खाली दिला आहे. हा कोड <b>5 मिनिटांसाठी</b> वैध आहे.<br>
+          <span style="color:#666; font-size:13px;">Your one-time password is below. Valid for 5 minutes.</span>
+        </p>
+        <div style="text-align:center; margin:26px 0;">
+          <div style="display:inline-block; background:#f0f7ff; border:2px dashed #0078d4; border-radius:12px; padding:16px 34px;">
+            <span style="font-size:38px; letter-spacing:10px; font-weight:700; color:#0078d4; font-family:'Courier New',monospace;">${otp}</span>
+          </div>
+        </div>
+        <p style="font-size:12px; color:#777; text-align:center; margin:0 0 8px;">Purpose: <b>${purpose}</b></p>
+        <p style="font-size:12px; color:#999; text-align:center; margin:0;">
+          हा OTP कोणालाही देऊ नका. तुम्ही ही विनंती केली नसेल तर दुर्लक्ष करा.<br>
+          Never share this OTP. If you didn't request this, please ignore.
+        </p>
+      </div>
+      <div style="background:#f8f9fb; padding:14px; text-align:center; font-size:11px; color:#aaa;">
+        GM Bus Tracking System • info.grcreative@gmail.com
+      </div>
+    </div>
+  </div>`;
+
+  // sendEmail() चं signature दोन्ही प्रकार handle करतो
+  //   (a) sendEmail(to, subject, html)      → length >= 3
+  //   (b) sendEmail({ to, subject, html })  → length == 1
+  if (typeof sendEmail === 'function' && sendEmail.length >= 3) {
+    return sendEmail(to, subject, html);
+  }
+  return sendEmail({ to, subject, html });
+}
+

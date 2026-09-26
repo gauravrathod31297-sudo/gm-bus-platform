@@ -1,102 +1,204 @@
-import { useEffect, useState } from 'react'
-import { Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, Field, Input, Select, Spinner, makeStyles, tokens, Text } from '@fluentui/react-components'
-import { EditRegular, SaveRegular } from '@fluentui/react-icons'
+
+import { useEffect, useMemo, useState } from 'react'
+import {
+  makeStyles, tokens, Text, Button, Input, MessageBar, MessageBarBody,
+  Avatar, Dropdown, Option,
+} from '@fluentui/react-components'
+import {
+  SearchRegular, ArrowSyncRegular, CalendarClockRegular,
+} from '@fluentui/react-icons'
+import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import { useDebounce } from '../hooks/useDebounce'
+import EmptyState from '../components/EmptyState'
+import Breadcrumbs from '../components/Breadcrumbs'
+import { DataTable, type Column } from '../components/DataTable'
+import { daysBetween, absoluteDate } from '../utils/time'
 
 const useStyles = makeStyles({
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  table: { width: '100%', background: 'white', borderRadius: '8px', overflow: 'hidden' },
-  row: { display: 'grid', gridTemplateColumns: '60px 2fr 1.2fr 1.5fr 1.5fr 1fr 1fr', padding: '14px 16px', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, alignItems: 'center', fontSize: '13px' },
-  hrow: { background: '#f9fafb', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' as const, color: tokens.colorNeutralForeground3 },
-  badge: { padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, display: 'inline-block' },
-  field: { marginBottom: '14px' },
+  wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
+  head: { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 },
+  h1: { fontSize: 22, fontWeight: 700, color: '#111827', display: 'block' },
+  sub: { fontSize: 13, color: '#6b7280', display: 'block' },
+  toolbar: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'white', border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: 12, padding: '12px 14px' },
+  search: { flex: 1, minWidth: 220 },
+  card: { background: 'white', border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: 12, overflow: 'hidden' },
+  companyCell: { display: 'flex', alignItems: 'center', gap: 10 },
+  name: { fontWeight: 600, color: '#111827', display: 'block' },
+  mail: { fontSize: 12, color: '#9ca3af', display: 'block' },
+  pill: { display: 'inline-block', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 10 },
+  pillSuccess: { background: '#dcfce7', color: '#15803d' },
+  pillWarn: { background: '#fef3c7', color: '#b45309' },
+  pillDanger: { background: '#fee2e2', color: '#b91c1c' },
+  pillNeutral: { background: '#f3f4f6', color: '#4b5563' },
+  daysStrong: { fontWeight: 600 },
 })
-
-const PLAN_COLORS: any = {
-  free: { bg: '#f3f4f6', fg: '#6b7280', label: 'Free Trial' },
-  basic: { bg: '#dbeafe', fg: '#2563eb', label: 'Basic' },
-  premium: { bg: '#fef3c7', fg: '#d97706', label: 'Premium' },
-  enterprise: { bg: '#f3e8ff', fg: '#9333ea', label: 'Enterprise' },
-}
-
-const fmt = (d: any) => d ? new Date(d).toLocaleDateString() : '—'
 
 export default function Subscriptions() {
   const s = useStyles()
-  const [clients, setClients] = useState<any[]>([])
+  const nav = useNavigate()
+  const [list, setList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState<any>(null)
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ plan: 'basic', months: 1 })
-  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const [q, setQ] = useState('')
+  const dq = useDebounce(q, 300)
+  const [filter, setFilter] = useState<'all' | 'expiring' | 'expired' | 'valid'>('all')
 
-  const load = () => { setLoading(true); api.get('/api/billing/subscriptions').then(r => setClients(r.data)).catch(() => {}).finally(() => setLoading(false)) }
-  useEffect(() => { load() }, [])
+  const load = () => {
+    setLoading(true); setErr('')
+    api.get('/api/admin/clients')
+      .then(r => setList(r.data))
+      .catch(e => setErr(e.response?.data?.error || e.message))
+      .finally(() => setLoading(false))
+  }
+  useEffect(load, [])
 
-  const openEdit = (c: any) => { setEditing(c); setForm({ plan: c.plan || 'basic', months: 1 }); setOpen(true) }
+  const daysLeft = (d: string | null) => d ? daysBetween(d) : null
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      await api.put(`/api/billing/subscriptions/${editing.id}`, form)
-      setOpen(false); load()
-    } catch (e: any) { alert(e.response?.data?.error || 'Failed') }
-    finally { setSaving(false) }
+  const filtered = useMemo(() => {
+    return list.filter(c => {
+      const dl = daysLeft(c.license_expires_at)
+      if (filter === 'expired' && (dl === null || dl >= 0)) return false
+      if (filter === 'expiring' && (dl === null || dl < 0 || dl > 30)) return false
+      if (filter === 'valid' && (dl === null || dl < 0)) return false
+      if (!dq.trim()) return true
+      const t = dq.toLowerCase()
+      return (c.company_name || '').toLowerCase().includes(t) || (c.email || '').toLowerCase().includes(t)
+    })
+  }, [list, dq, filter])
+
+  const counts = useMemo(() => ({
+    total: list.length,
+    expiring: list.filter(c => { const dl = daysLeft(c.license_expires_at); return dl !== null && dl >= 0 && dl <= 30 }).length,
+    expired: list.filter(c => { const dl = daysLeft(c.license_expires_at); return dl !== null && dl < 0 }).length,
+  }), [list])
+
+  const statusInfo = (dl: number | null) => {
+    if (dl === null) return { cls: s.pillNeutral, text: '—', sort: -99999 }
+    if (dl < 0) return { cls: s.pillDanger, text: 'Expired', sort: 0 }
+    if (dl <= 30) return { cls: s.pillWarn, text: 'Expiring soon', sort: 1 }
+    return { cls: s.pillSuccess, text: 'Active', sort: 2 }
   }
 
-  return (
-    <>
-      <Text size={700} weight="bold" style={{ display: 'block', marginBottom: '24px' }}>💳 Subscriptions</Text>
-      {loading ? <Spinner /> : (
-        <div className={s.table}>
-          <div className={`${s.row} ${s.hrow}`}><div>ID</div><div>Company</div><div>Plan</div><div>Expires</div><div>Trial Ends</div><div>Status</div><div>Actions</div></div>
-          {clients.map(c => (
-            <div key={c.id} className={s.row}>
-              <div>#{c.id}</div>
-              <div><strong>{c.company_name}</strong></div>
-              <div>
-                <span className={s.badge} style={{ background: PLAN_COLORS[c.plan]?.bg || '#eee', color: PLAN_COLORS[c.plan]?.fg || '#333' }}>
-                  {PLAN_COLORS[c.plan]?.label || c.plan}
-                </span>
-              </div>
-              <div style={{ fontSize: '12px' }}>{fmt(c.plan_expires_at)}</div>
-              <div style={{ fontSize: '12px' }}>{fmt(c.trial_ends_at)}</div>
-              <div>
-                <span className={s.badge} style={{ background: c.is_active ? '#dcfce7' : '#fee2e2', color: c.is_active ? '#16a34a' : '#dc2626' }}>
-                  {c.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <div><Button size="small" appearance="subtle" icon={<EditRegular />} onClick={() => openEdit(c)} /></div>
-            </div>
-          ))}
+  const columns: Column<any>[] = useMemo(() => [
+    {
+      key: 'client',
+      label: 'Client',
+      sortable: true,
+      getValue: (c) => (c.company_name || c.email || '').toLowerCase(),
+      render: (c) => (
+        <div className={s.companyCell}>
+          <Avatar size={28} name={c.company_name || c.email || '—'} color="brand" />
+          <div>
+            <span className={s.name}>{c.company_name || '—'}</span>
+            <span className={s.mail}>{c.email}</span>
+          </div>
         </div>
+      ),
+    },
+    {
+      key: 'plan',
+      label: 'Plan',
+      sortable: true,
+      getValue: (c) => (c.license_type || 'basic').toLowerCase(),
+      render: (c) => (
+        <span className={`${s.pill} ${s.pillNeutral}`}>{c.license_type || 'basic'}</span>
+      ),
+    },
+    {
+      key: 'expires',
+      label: 'Expires',
+      sortable: true,
+      getValue: (c) => (c.license_expires_at ? new Date(c.license_expires_at) : null),
+      render: (c) => (c.license_expires_at ? absoluteDate(c.license_expires_at) : '—'),
+    },
+    {
+      key: 'daysLeft',
+      label: 'Days left',
+      sortable: true,
+      getValue: (c) => daysLeft(c.license_expires_at),
+      render: (c) => {
+        const dl = daysLeft(c.license_expires_at)
+        return <span className={s.daysStrong}>{dl ?? '—'}</span>
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      getValue: (c) => statusInfo(daysLeft(c.license_expires_at)).sort,
+      render: (c) => {
+        const info = statusInfo(daysLeft(c.license_expires_at))
+        return <span className={`${s.pill} ${info.cls}`}>{info.text}</span>
+      },
+    },
+  ], [s])
+
+  return (
+    <div className={s.wrap}>
+      <Breadcrumbs items={[{ label: 'Subscriptions' }]} />
+
+      <div className={s.head}>
+        <div>
+          <Text className={s.h1}>Subscriptions</Text>
+          <Text className={s.sub}>
+            {counts.total} clients · {counts.expiring} expiring soon · {counts.expired} expired
+          </Text>
+        </div>
+        <Button appearance="secondary" icon={<ArrowSyncRegular />} onClick={load}>
+          Refresh
+        </Button>
+      </div>
+
+      <div className={s.toolbar}>
+        <Input
+          className={s.search}
+          contentBefore={<SearchRegular />}
+          placeholder="Search company or email…"
+          value={q}
+          onChange={(_, d) => setQ(d.value)}
+          appearance="filled-darker"
+        />
+        <Dropdown
+          value={filter === 'all' ? 'All' : filter === 'expiring' ? 'Expiring (≤30d)' : filter === 'expired' ? 'Expired' : 'Valid'}
+          selectedOptions={[filter]}
+          onOptionSelect={(_, d) => setFilter(d.optionValue as any)}
+        >
+          <Option value="all">All</Option>
+          <Option value="valid">Valid</Option>
+          <Option value="expiring">Expiring (≤30d)</Option>
+          <Option value="expired">Expired</Option>
+        </Dropdown>
+      </div>
+
+      {err && (
+        <MessageBar intent="error">
+          <MessageBarBody>{err}</MessageBarBody>
+        </MessageBar>
       )}
 
-      <Dialog open={open} onOpenChange={(_, d) => setOpen(d.open)}>
-        <DialogSurface style={{ maxWidth: '450px' }}>
-          <DialogBody>
-            <DialogTitle>✏️ Update Subscription</DialogTitle>
-            <DialogContent>
-              <Text style={{ display: 'block', marginBottom: '16px', fontWeight: 600 }}>{editing?.company_name}</Text>
-              <Field label="Plan" className={s.field}>
-                <Select value={form.plan} onChange={(_, d) => setForm({ ...form, plan: d.value })}>
-                  <option value="free">Free Trial — ₹0</option>
-                  <option value="basic">Basic — ₹499/month</option>
-                  <option value="premium">Premium — ₹1,499/month</option>
-                  <option value="enterprise">Enterprise — ₹4,999/month</option>
-                </Select>
-              </Field>
-              <Field label="Duration (months)" className={s.field}>
-                <Input type="number" value={String(form.months)} onChange={(_, d) => setForm({ ...form, months: parseInt(d.value) || 1 })} />
-              </Field>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setOpen(false)}>Cancel</Button>
-              <Button appearance="primary" icon={<SaveRegular />} onClick={save} disabled={saving}>{saving ? '...' : 'Update'}</Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
-    </>
+      {loading ? (
+        <div className={s.card} style={{ padding: 60, textAlign: 'center' }}>
+          <Text>Loading…</Text>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className={s.card}>
+          <EmptyState
+            icon={<CalendarClockRegular />}
+            title="No subscriptions match"
+            description="Filters बदला किंवा नवीन clients approve करा."
+          />
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(c) => String(c.id)}
+          onRowClick={(c) => nav(`/clients/${c.id}`)}
+          pageSize={25}
+          emptyMessage="No subscriptions"
+        />
+      )}
+    </div>
   )
 }

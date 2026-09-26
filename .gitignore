@@ -33,3 +33,26 @@ logs/
 .env.local
 .env.production
 *.env
+
+# backups & artifacts
+*.bak
+*.bak.*
+*.bak-*
+.backups/
+**/.bak/
+**/dist/
+**/*.tsbuildinfo
+backend/public/audio/*.mp3
+client-dashboard/.env.bak.*
+
+# nested / separate projects
+backend/bus-announcement-system/
+
+# apk binaries (rebuild from source)
+backend/public/apk/*.apk
+
+# deleted duplicates
+admin-panel/
+dashboard-app/
+public-website/
+driver-app/
