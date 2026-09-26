@@ -56,3 +56,6 @@ admin-panel/
 dashboard-app/
 public-website/
 driver-app/
+*.bak*
+*.deleted.*
+**/*.bak*
