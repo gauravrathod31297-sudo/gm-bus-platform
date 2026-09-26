@@ -116,7 +116,7 @@ export default function Deployment() {
   }
 
   const pairingUrl = (b: Bus) =>
-    `gm-bus://pair?bus_id=${b.id}&bus_number=${encodeURIComponent(b.bus_number)}&token=${b.pairing_token}`
+    `gm-bus://pair?client_id=${clientId}&bus_id=${b.id}&bus_number=${encodeURIComponent(b.bus_number)}&token=${b.pairing_token}`
 
   const copyUrl = async (b: Bus) => {
     try {

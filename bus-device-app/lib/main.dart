@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'services/auth_service.dart';
 import 'services/socket_service.dart';
 import 'services/gps_service.dart';
@@ -24,7 +25,34 @@ class GMBusDeviceApp extends StatelessWidget {
       title: 'GM Bus Device',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const LoginScreen(),
+      home: const _Bootstrap(),
     );
   }
+}
+
+class _Bootstrap extends StatefulWidget {
+  const _Bootstrap();
+  @override
+  State<_Bootstrap> createState() => _BootstrapState();
+}
+
+class _BootstrapState extends State<_Bootstrap> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final paired = await auth.tryAutoLogin();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => paired ? const DashboardScreen() : const LoginScreen()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
 }

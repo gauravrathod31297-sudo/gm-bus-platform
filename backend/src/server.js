@@ -64,6 +64,7 @@ app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/signup', signupRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/bus', require('./routes/pair'));
 app.use('/api/bus', busRoutes);
 const driverRoutes = require('./routes/driver');
 app.use('/api/drivers', driverRoutes);

@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const masterDb = require('../config/database');
 const { getTenantDb } = require('../config/tenantDb');
 
@@ -5,120 +6,89 @@ function initSocket(io) {
   io.on('connection', (socket) => {
     console.log('✅ Socket connected:', socket.id);
 
-    // Driver joins (bus device app)
-    socket.on('driver:join', async ({ bus_id, client_id, token }) => {
+    socket.on('driver:join', async ({ device_token }) => {
       try {
+        const decoded = jwt.verify(device_token, process.env.JWT_SECRET);
+        if (decoded.role !== 'device') throw new Error('Not a device token');
+
         const { rows } = await masterDb.query(
-          'SELECT db_name FROM clients WHERE id=$1 AND status=$2',
-          [client_id, 'approved']
+          'SELECT db_name, status FROM clients WHERE id=$1', [decoded.client_id]
         );
-        if (!rows[0]) {
-          socket.emit('error', { message: 'Client not found' });
-          return;
-        }
+        if (!rows[0] || rows[0].status !== 'approved') throw new Error('Client not approved');
 
         const tenantDb = await getTenantDb(rows[0].db_name);
-        socket.clientDbName = rows[0].db_name;
-        socket.clientId = client_id;
-        socket.busId = bus_id;
-        socket.join(`bus_${bus_id}`);
-        socket.join(`client_${client_id}`);
+        const { rows: devs } = await tenantDb.query(
+          'SELECT id, revoked_at FROM devices WHERE id=$1', [decoded.device_id]
+        );
+        if (!devs[0] || devs[0].revoked_at) throw new Error('Device revoked');
 
-        console.log(`🚌 Bus ${bus_id} joined (client ${client_id})`);
-        socket.emit('joined', { success: true, bus_id, client_id });
+        await tenantDb.query('UPDATE devices SET last_seen_at=NOW() WHERE id=$1', [decoded.device_id]);
+
+        socket.clientDbName = rows[0].db_name;
+        socket.clientId = decoded.client_id;
+        socket.busId = decoded.bus_id;
+        socket.deviceId = decoded.device_id;
+        socket.join(`bus_${decoded.bus_id}`);
+        socket.join(`client_${decoded.client_id}`);
+
+        console.log(`🚌 Bus ${decoded.bus_id} joined (client ${decoded.client_id})`);
+        socket.emit('joined', { success: true, bus_id: decoded.bus_id, client_id: decoded.client_id });
       } catch (err) {
-        console.error('driver:join error:', err);
+        console.error('driver:join error:', err.message);
         socket.emit('error', { message: err.message });
       }
     });
 
-    // Viewer joins (dashboard + passenger app)
     socket.on('viewer:join', async ({ client_id }) => {
-      try {
-        socket.join(`client_${client_id}`);
-        socket.clientId = client_id;
-        console.log(`👀 Viewer joined client ${client_id}`);
-        socket.emit('viewer:joined', { success: true, client_id });
-      } catch (err) {
-        console.error('viewer:join error:', err);
-      }
+      socket.join(`client_${client_id}`);
+      socket.clientId = client_id;
+      socket.emit('viewer:joined', { success: true, client_id });
     });
 
-    // Driver sends location
     socket.on('driver:location', async (data) => {
-      const { bus_id, client_id, lat, lng, speed, heading } = data;
-
+      if (!socket.deviceId) return socket.emit('error', { message: 'Not paired' });
+      const { lat, lng, speed, heading } = data;
       try {
-        const { rows } = await masterDb.query(
-          'SELECT db_name FROM clients WHERE id=$1',
-          [client_id]
-        );
-        if (!rows[0]) return;
-
-        const tenantDb = await getTenantDb(rows[0].db_name);
-
-        // Insert new location
+        const tenantDb = await getTenantDb(socket.clientDbName);
         await tenantDb.query(
           `INSERT INTO live_locations (bus_id, lat, lng, speed, heading, updated_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [bus_id, lat, lng, speed || 0, heading || 0]
+           VALUES ($1,$2,$3,$4,$5,NOW())`,
+          [socket.busId, lat, lng, speed || 0, heading || 0]
         );
-
-        // Keep only latest per bus (cleanup)
         await tenantDb.query(
-          `DELETE FROM live_locations 
-           WHERE bus_id=$1 AND id NOT IN (
-             SELECT id FROM live_locations 
-             WHERE bus_id=$1 
-             ORDER BY updated_at DESC LIMIT 1
-           )`,
-          [bus_id]
+          `DELETE FROM live_locations WHERE bus_id=$1 AND id NOT IN (
+             SELECT id FROM live_locations WHERE bus_id=$1 ORDER BY updated_at DESC LIMIT 1)`,
+          [socket.busId]
         );
-
-        // Broadcast to all viewers of this client
-        io.to(`client_${client_id}`).emit('bus:location', {
-          bus_id,
-          lat,
-          lng,
-          speed: speed || 0,
-          heading: heading || 0,
+        const payload = {
+          bus_id: socket.busId, lat, lng,
+          speed: speed || 0, heading: heading || 0,
+          last_update: new Date().toISOString(),
           timestamp: new Date().toISOString(),
-        });
+        };
+        io.to(`client_${socket.clientId}`).emit('bus:update', payload);
+        io.to(`client_${socket.clientId}`).emit('bus:location', payload);
       } catch (err) {
         console.error('driver:location error:', err.message);
       }
     });
 
-    // Driver announcement (voice)
     socket.on('driver:announcement', (data) => {
-      const { client_id, bus_id, stop_id, language, text, audio_url } = data;
-      io.to(`client_${client_id}`).emit('announcement:playing', {
-        bus_id,
-        stop_id,
-        language,
-        text,
-        audio_url,
-        timestamp: new Date().toISOString(),
+      if (!socket.deviceId) return;
+      io.to(`client_${socket.clientId}`).emit('announcement:playing', {
+        bus_id: socket.busId, ...data, timestamp: new Date().toISOString(),
       });
-      console.log(`🔊 Announcement on bus ${bus_id}: ${text}`);
     });
 
-    // SOS / Emergency
     socket.on('driver:sos', (data) => {
-      const { client_id, bus_id, lat, lng, message } = data;
-      io.to(`client_${client_id}`).emit('sos:alert', {
-        bus_id,
-        lat,
-        lng,
-        message,
-        timestamp: new Date().toISOString(),
+      if (!socket.deviceId) return;
+      io.to(`client_${socket.clientId}`).emit('sos:alert', {
+        bus_id: socket.busId, ...data, timestamp: new Date().toISOString(),
       });
-      console.log(`🚨 SOS from bus ${bus_id}!`);
+      console.log(`🚨 SOS from bus ${socket.busId}!`);
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected:', socket.id);
-    });
+    socket.on('disconnect', () => console.log('❌ Socket disconnected:', socket.id));
   });
 }
 
